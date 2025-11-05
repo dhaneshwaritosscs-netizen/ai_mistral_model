@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Data Extractor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #ffffff;
+            min-height: 100vh;
+            color: #353740;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 260px;
+            background: #f7f7f8;
+            border-right: 1px solid #e5e5e6;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .sidebar-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e5e5e6;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sidebar-logo {
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .sidebar-new-chat {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e5e5e6;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            color: #353740;
+            text-decoration: none;
+            transition: background 0.2s;
+        }
+
+        .sidebar-new-chat:hover {
+            background: #ececf1;
+        }
+
+        .sidebar-new-chat svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .sidebar-nav {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e5e5e6;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .sidebar-nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 12px;
+            color: #353740;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: background 0.2s;
+            cursor: pointer;
+        }
+
+        .sidebar-nav-item:hover {
+            background: #ececf1;
+        }
+
+        .sidebar-nav-item svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .sidebar-chats {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+
+        .sidebar-chats-label {
+            padding: 8px 12px;
+            font-size: 12px;
+            color: #8e8ea0;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .sidebar-footer {
+            padding: 12px 16px;
+            border-top: 1px solid #e5e5e6;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sidebar-user {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+        }
+
+        .sidebar-user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #667eea;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .sidebar-user-info {
+            flex: 1;
+        }
+
+        .sidebar-user-name {
+            font-size: 14px;
+            font-weight: 500;
+            color: #353740;
+        }
+
+        .sidebar-user-plan {
+            font-size: 12px;
+            color: #8e8ea0;
+        }
+
+        .btn {
+            background: #10a37f;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: #0d8f6e;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background: #ffffff;
+        }
+
+        .main-header {
+            padding: 16px 24px;
+            border-bottom: 1px solid #e5e5e6;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .main-header-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #353740;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .main-header-title svg {
+            width: 16px;
+            height: 16px;
+            color: #8e8ea0;
+        }
+
+        .chat-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .form-section {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        label {
+            font-weight: 600;
+            color: #353740;
+            font-size: 14px;
+        }
+
+        .field-hint {
+            font-size: 12px;
+            color: #8e8ea0;
+        }
+
+        input[type="text"],
+        input[type="url"],
+        textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.2s;
+            font-family: inherit;
+            background: #ffffff;
+        }
+
+        input[type="text"]:focus,
+        input[type="url"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #10a37f;
+            box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.1);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .fields-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-top: 8px;
+            min-height: 100px;
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 12px;
+            border: 1px solid #e5e5e6;
+            border-radius: 8px;
+            background: #ffffff;
+        }
+
+        .fields-grid.loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #8e8ea0;
+            font-size: 14px;
+        }
+
+        .fields-grid.empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #8e8ea0;
+            font-size: 14px;
+        }
+
+        .field-checkbox {
+            display: flex;
+            align-items: flex-start;
+            padding: 12px;
+            border-radius: 6px;
+            transition: background 0.2s;
+            cursor: pointer;
+            gap: 8px;
+        }
+
+        .field-checkbox:hover {
+            background: #f7f7f8;
+        }
+
+        .field-checkbox input {
+            margin-top: 2px;
+            cursor: pointer;
+            width: auto;
+            flex-shrink: 0;
+        }
+
+        .field-checkbox label {
+            cursor: pointer;
+            margin: 0;
+            font-weight: normal;
+            font-size: 13px;
+            flex: 1;
+        }
+
+        .field-checkbox label strong {
+            display: block;
+            margin-bottom: 4px;
+            color: #353740;
+        }
+
+        .field-checkbox label small {
+            color: #8e8ea0;
+            font-size: 12px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #10a37f;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result-section {
+            display: none;
+            margin-top: 24px;
+        }
+
+        .result-section.active {
+            display: block;
+        }
+
+        .result-card {
+            background: #f7f7f8;
+            border-radius: 8px;
+            padding: 20px;
+            border: 1px solid #e5e5e6;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .result-header h2 {
+            color: #353740;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .source-badge {
+            background: #10a37f;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .result-data {
+            background: white;
+            border-radius: 6px;
+            padding: 16px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            max-height: 500px;
+            overflow-y: auto;
+            font-size: 13px;
+        }
+
+        .result-data pre {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .error {
+            background: #fee;
+            border-color: #f55;
+        }
+
+        .error .source-badge {
+            background: #ef4444;
+        }
+
+        .field-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            background: white;
+            border-radius: 6px;
+            border-left: 3px solid #10a37f;
+        }
+
+        .field-name {
+            font-weight: 600;
+            color: #10a37f;
+            margin-bottom: 6px;
+            font-size: 13px;
+        }
+
+        .field-value {
+            color: #353740;
+            word-break: break-word;
+            font-size: 13px;
+        }
+
+        .field-null {
+            color: #8e8ea0;
+            font-style: italic;
+        }
+
+        /* Input Area */
+        .input-area {
+            padding: 16px 24px;
+            border-top: 1px solid #e5e5e6;
+            background: #ffffff;
+        }
+
+        .input-container {
+            max-width: 768px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .input-wrapper {
+            display: flex;
+            align-items: flex-end;
+            background: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 24px;
+            padding: 12px 16px;
+            gap: 8px;
+        }
+
+        .input-wrapper:focus-within {
+            border-color: #10a37f;
+            box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.1);
+        }
+
+        .input-icon {
+            width: 20px;
+            height: 20px;
+            color: #8e8ea0;
+            flex-shrink: 0;
+        }
+
+        .input-field {
+            flex: 1;
+            border: none;
+            outline: none;
+            font-size: 16px;
+            font-family: inherit;
+            resize: none;
+            min-height: 24px;
+            max-height: 200px;
+            background: transparent;
+            color: #353740;
+        }
+
+        .input-field::placeholder {
+            color: #8e8ea0;
+        }
+
+        .submit-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #10a37f;
+            border: none;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+            flex-shrink: 0;
+        }
+
+        .submit-btn:hover:not(:disabled) {
+            background: #0d8f6e;
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .submit-btn svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        .footer {
+            padding: 12px 24px;
+            text-align: center;
+            font-size: 12px;
+            color: #8e8ea0;
+            border-top: 1px solid #e5e5e6;
+        }
+
+        .mode-btn {
+            transition: all 0.2s;
+        }
+
+        .mode-btn:hover:not(.active) {
+            background: #f7f7f8 !important;
+        }
+
+        .mode-btn.active:hover {
+            background: #0d8f6e !important;
+        }
+
+        @media (max-width: 1024px) {
+            .fields-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+
+            .fields-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">P</div>
+            <span style="font-weight: 600;">Product Data Extractor</span>
+        </div>
+        
+        <a href="#" class="sidebar-new-chat" onclick="location.reload(); return false;">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+            </svg>
+            <span>New extraction</span>
+        </a>
+
+        <div class="sidebar-nav">
+            <div class="sidebar-nav-item">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+                <span>Search extractions</span>
+            </div>
+        </div>
+
+        <div class="sidebar-chats">
+            <div class="sidebar-chats-label">Extractions</div>
+        </div>
+
+        <div class="sidebar-footer">
+            <div class="sidebar-user">
+                <div class="sidebar-user-avatar">U</div>
+                <div class="sidebar-user-info">
+                    <div class="sidebar-user-name">User</div>
+                    <div class="sidebar-user-plan">Free</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="main-header">
+            <div class="main-header-title">
+                <span>Product Data Extractor</span>
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+            </div>
+        </div>
+
+        <div class="chat-area">
+            <!-- URL Input Mode Toggle -->
+            <div class="url-mode-toggle" style="margin-bottom: 20px; display: flex; gap: 8px; padding: 8px; background: #f7f7f8; border-radius: 8px;">
+                <button type="button" class="mode-btn active" id="singleUrlMode" style="flex: 1; padding: 8px 16px; border: 1px solid #e5e5e6; border-radius: 6px; background: white; cursor: pointer; font-size: 14px;">Single URL</button>
+                <button type="button" class="mode-btn" id="multipleUrlMode" style="flex: 1; padding: 8px 16px; border: 1px solid #e5e5e6; border-radius: 6px; background: white; cursor: pointer; font-size: 14px;">Multiple URLs</button>
+                <button type="button" class="mode-btn" id="csvUploadMode" style="flex: 1; padding: 8px 16px; border: 1px solid #e5e5e6; border-radius: 6px; background: white; cursor: pointer; font-size: 14px;">Upload CSV</button>
+            </div>
+
+            <form id="extractForm">
+                <div class="form-section">
+                    <!-- Single URL Input (hidden by default for batch mode) -->
+                    <div class="form-group" id="singleUrlGroup" style="display: none;">
+                        <label for="singleUrl">Product URL</label>
+                        <input 
+                            type="url" 
+                            id="singleUrl" 
+                            name="singleUrl" 
+                            placeholder="https://www.meesho.com/product-url"
+                        >
+                        <div class="field-hint">Enter a single product URL</div>
+                    </div>
+
+                    <!-- Multiple URLs Input -->
+                    <div class="form-group" id="multipleUrlGroup" style="display: none;">
+                        <label for="multipleUrls">Product URLs (one per line)</label>
+                        <textarea 
+                            id="multipleUrls" 
+                            name="multipleUrls" 
+                            placeholder="https://www.meesho.com/product-url-1&#10;https://www.meesho.com/product-url-2&#10;https://www.meesho.com/product-url-3"
+                            style="min-height: 150px; font-family: monospace; font-size: 13px;"
+                        ></textarea>
+                        <div class="field-hint">Enter multiple URLs, one per line</div>
+                        <button type="button" class="btn" id="submitMultipleBtn" style="margin-top: 12px; width: 100%;">
+                            Extract Data from All URLs
+                        </button>
+                    </div>
+
+                    <!-- CSV Upload -->
+                    <div class="form-group" id="csvUploadGroup" style="display: none;">
+                        <label for="csvFile">Upload CSV File</label>
+                        <input 
+                            type="file" 
+                            id="csvFile" 
+                            name="csvFile" 
+                            accept=".csv"
+                            style="padding: 8px; border: 1px solid #d1d5db; border-radius: 8px; width: 100%; font-size: 14px;"
+                        >
+                        <div class="field-hint">Upload a CSV file with URLs in the first column</div>
+                        
+                        <!-- CSV Preview Section -->
+                        <div id="csvPreview" style="display: none; margin-top: 16px; padding: 16px; background: #f7f7f8; border-radius: 8px; border: 1px solid #e5e5e6;">
+                            <div style="margin-bottom: 12px;">
+                                <strong style="color: #353740; font-size: 14px;">CSV File Information:</strong>
+                            </div>
+                            <div style="margin-bottom: 12px; padding: 8px; background: white; border-radius: 6px;">
+                                <span style="color: #10a37f; font-weight: 600;">Total URLs to process: </span>
+                                <span id="urlCount" style="font-weight: 600; color: #353740;">0</span>
+                            </div>
+                            <div style="margin-bottom: 8px;">
+                                <strong style="color: #353740; font-size: 13px;">URLs List:</strong>
+                            </div>
+                            <div id="urlList" style="max-height: 300px; overflow-y: auto; padding: 12px; background: white; border-radius: 6px; border: 1px solid #e5e5e6;">
+                                <!-- URLs will be listed here -->
+                            </div>
+                        </div>
+                        
+                        <button type="button" class="btn" id="submitCsvBtn" style="margin-top: 12px; width: 100%;" disabled>
+                            Extract Data from CSV
+                        </button>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Fields to Extract</label>
+                        <div class="field-hint">Select predefined fields or enter custom fields (comma-separated)</div>
+                        <div class="fields-grid loading" id="fieldsGrid">
+                            Loading fields...
+                        </div>
+                        <textarea 
+                            id="customFields" 
+                            name="customFields" 
+                            placeholder="Enter custom fields (comma-separated): Available, offers, etc."
+                            style="margin-top: 8px;"
+                        ></textarea>
+                    </div>
+                </div>
+            </form>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p style="color: #8e8ea0; font-size: 14px;">Processing... This may take a minute.</p>
+            </div>
+
+            <div class="result-section" id="resultSection">
+                <div class="result-card" id="resultCard">
+                    <div class="result-header">
+                        <h2>Results</h2>
+                        <span class="source-badge" id="sourceBadge">OCR</span>
+                    </div>
+                    <div class="result-data" id="resultData"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="input-area" id="bottomInputArea">
+            <div class="input-container">
+                <div class="input-wrapper">
+                    <svg class="input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    <input 
+                        type="url" 
+                        id="quickSubmit" 
+                        class="input-field"
+                        placeholder="Enter product URL or press Enter to extract data"
+                    >
+                    <button type="button" class="submit-btn" id="submitBtn">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            Product Data Extractor can make mistakes. Check important info.
+        </div>
+    </div>
+
+    <script>
+        let availableFields = [];
+        let currentMode = 'quick'; // 'quick', 'single', 'multiple', 'csv'
+
+        // Mode switching
+        function switchMode(mode) {
+            currentMode = mode;
+            
+            // Update button states
+            document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+            
+            // Hide all input groups
+            document.getElementById('singleUrlGroup').style.display = 'none';
+            document.getElementById('multipleUrlGroup').style.display = 'none';
+            document.getElementById('csvUploadGroup').style.display = 'none';
+            document.getElementById('bottomInputArea').style.display = 'none';
+            
+            // Clear CSV preview when switching modes
+            document.getElementById('csvPreview').style.display = 'none';
+            document.getElementById('csvFile').value = '';
+            document.getElementById('submitCsvBtn').disabled = true;
+            
+            // Show appropriate input group
+            if (mode === 'single') {
+                document.getElementById('singleUrlMode').classList.add('active');
+                document.getElementById('singleUrlGroup').style.display = 'block';
+                document.getElementById('bottomInputArea').style.display = 'block';
+            } else if (mode === 'multiple') {
+                document.getElementById('multipleUrlMode').classList.add('active');
+                document.getElementById('multipleUrlGroup').style.display = 'block';
+                document.getElementById('bottomInputArea').style.display = 'none';
+            } else if (mode === 'csv') {
+                document.getElementById('csvUploadMode').classList.add('active');
+                document.getElementById('csvUploadGroup').style.display = 'block';
+                document.getElementById('bottomInputArea').style.display = 'none';
+            } else {
+                // Quick mode (default - bottom input only)
+                document.getElementById('singleUrlMode').classList.add('active');
+                document.getElementById('bottomInputArea').style.display = 'block';
+            }
+        }
+
+        // Initialize mode buttons
+        document.getElementById('singleUrlMode').addEventListener('click', () => switchMode('single'));
+        document.getElementById('multipleUrlMode').addEventListener('click', () => switchMode('multiple'));
+        document.getElementById('csvUploadMode').addEventListener('click', () => switchMode('csv'));
+
+        // Initialize with quick mode (bottom input only)
+        switchMode('quick');
+
+        // Load available fields on page load
+        async function loadFields() {
+            const grid = document.getElementById('fieldsGrid');
+            try {
+                const response = await fetch('/api/fields');
+                const data = await response.json();
+                if (data.success && data.fields && data.fields.length > 0) {
+                    availableFields = data.fields;
+                    renderFields();
+                } else {
+                    grid.className = 'fields-grid empty';
+                    grid.innerHTML = 'No fields available';
+                }
+            } catch (error) {
+                console.error('Error loading fields:', error);
+                grid.className = 'fields-grid empty';
+                grid.innerHTML = 'Error loading fields. Please refresh the page.';
+            }
+        }
+
+        function renderFields() {
+            const grid = document.getElementById('fieldsGrid');
+            if (availableFields.length === 0) {
+                grid.className = 'fields-grid empty';
+                grid.innerHTML = 'No fields available';
+                return;
+            }
+            grid.className = 'fields-grid';
+            grid.innerHTML = availableFields.map(field => `
+                <div class="field-checkbox">
+                    <input type="checkbox" id="field-${field.name}" value="${field.name}" name="fields" checked>
+                    <label for="field-${field.name}">
+                        <strong>${field.name}</strong><br>
+                        <small>${field.description}</small>
+                    </label>
+                </div>
+            `).join('');
+        }
+
+        function displayResult(data, isError = false) {
+            const resultSection = document.getElementById('resultSection');
+            const resultCard = document.getElementById('resultCard');
+            const resultData = document.getElementById('resultData');
+            const sourceBadge = document.getElementById('sourceBadge');
+
+            resultSection.classList.add('active');
+            if (isError) {
+                resultCard.classList.add('error');
+            } else {
+                resultCard.classList.remove('error');
+            }
+
+            if (isError) {
+                resultData.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+                sourceBadge.textContent = 'ERROR';
+            } else {
+                // Check if it's multiple results (array)
+                if (Array.isArray(data)) {
+                    let html = `<div style="margin-bottom: 16px; font-weight: 600; color: #353740;">Total: ${data.length} URLs processed</div>`;
+                    data.forEach((result, index) => {
+                        html += `<div style="margin-bottom: 24px; padding: 16px; background: white; border-radius: 8px; border-left: 3px solid #10a37f;">`;
+                        html += `<div style="font-weight: 600; color: #10a37f; margin-bottom: 12px; font-size: 13px;">URL ${index + 1}: ${result.url || 'N/A'}</div>`;
+                        
+                        if (result.error) {
+                            html += `<div style="color: #ef4444; padding: 8px; background: #fee; border-radius: 4px;">Error: ${result.error}</div>`;
+                        } else {
+                            for (const [key, value] of Object.entries(result)) {
+                                if (key === 'source' || key === 'url') continue;
+                                html += `
+                                    <div class="field-item">
+                                        <div class="field-name">${key}</div>
+                                        <div class="field-value ${value === null ? 'field-null' : ''}">
+                                            ${value === null ? '(not found)' : 
+                                              typeof value === 'object' ? JSON.stringify(value, null, 2) : 
+                                              String(value)}
+                                        </div>
+                                    </div>
+                                `;
+                            }
+                        }
+                        html += `</div>`;
+                    });
+                    resultData.innerHTML = html;
+                    sourceBadge.textContent = 'BATCH';
+                } else {
+                    // Single result
+                const source = data.source || 'unknown';
+                sourceBadge.textContent = source.toUpperCase();
+
+                let html = '';
+                for (const [key, value] of Object.entries(data)) {
+                    if (key === 'source') continue;
+                    html += `
+                        <div class="field-item">
+                            <div class="field-name">${key}</div>
+                            <div class="field-value ${value === null ? 'field-null' : ''}">
+                                ${value === null ? '(not found)' : 
+                                  typeof value === 'object' ? JSON.stringify(value, null, 2) : 
+                                  String(value)}
+                            </div>
+                        </div>
+                    `;
+                }
+                resultData.innerHTML = html || '<p>No data extracted</p>';
+                }
+            }
+        }
+
+        async function submitExtraction() {
+            const customFields = document.getElementById('customFields').value;
+            const checkboxes = document.querySelectorAll('input[name="fields"]:checked');
+            const selectedFields = Array.from(checkboxes).map(cb => cb.value);
+            
+            // Combine selected fields and custom fields
+            let fields = [...selectedFields];
+            if (customFields.trim()) {
+                const custom = customFields.split(',').map(f => f.trim()).filter(f => f);
+                fields = [...fields, ...custom];
+            }
+            
+            // If no fields selected, use empty array (will default to rating, review)
+            if (fields.length === 0) {
+                fields = null;
+            }
+
+            let url = '';
+            let urls = [];
+            let isMultiple = false;
+
+            // Handle different modes
+            if (currentMode === 'quick' || currentMode === 'single') {
+                url = currentMode === 'quick' 
+                    ? document.getElementById('quickSubmit').value.trim()
+                    : document.getElementById('singleUrl').value.trim();
+                
+                if (!url) {
+                    alert('Please enter a product URL');
+                    return;
+                }
+            } else if (currentMode === 'multiple') {
+                const multipleUrlsText = document.getElementById('multipleUrls').value.trim();
+                if (!multipleUrlsText) {
+                    alert('Please enter at least one URL');
+                    return;
+                }
+                urls = multipleUrlsText.split('\n')
+                    .map(u => u.trim())
+                    .filter(u => u && (u.startsWith('http://') || u.startsWith('https://')));
+                
+                if (urls.length === 0) {
+                    alert('Please enter valid URLs (one per line)');
+                    return;
+                }
+                isMultiple = true;
+            } else if (currentMode === 'csv') {
+                const fileInput = document.getElementById('csvFile');
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    alert('Please select a CSV file');
+                    return;
+                }
+                
+                // Handle CSV upload
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                if (fields) {
+                    formData.append('fields', fields.join(','));
+                }
+
+                // Show loading
+                document.getElementById('loading').classList.add('active');
+                document.getElementById('resultSection').classList.remove('active');
+                document.getElementById('submitCsvBtn').disabled = true;
+
+                try {
+                    const response = await fetch('/api/upload-csv', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        displayResult(result.data);
+                        // Clear file input
+                        fileInput.value = '';
+                    } else {
+                        displayResult({ error: result.error }, true);
+                    }
+                } catch (error) {
+                    displayResult({ error: error.message }, true);
+                } finally {
+                    document.getElementById('loading').classList.remove('active');
+                    document.getElementById('submitCsvBtn').disabled = false;
+                }
+                return;
+            }
+
+            // Show loading
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('resultSection').classList.remove('active');
+            
+            // Disable appropriate buttons
+            if (currentMode === 'multiple') {
+                document.getElementById('submitMultipleBtn').disabled = true;
+            } else {
+                document.getElementById('submitBtn').disabled = true;
+                if (document.getElementById('quickSubmit')) {
+                    document.getElementById('quickSubmit').disabled = true;
+                }
+            }
+
+            try {
+                const requestBody = isMultiple 
+                    ? { urls, fields }
+                    : { url, fields };
+
+                const response = await fetch('/api/extract', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayResult(result.data);
+                    // Clear input after successful extraction
+                    if (currentMode === 'quick') {
+                        clearInput();
+                    } else if (currentMode === 'single') {
+                        document.getElementById('singleUrl').value = '';
+                    } else if (currentMode === 'multiple') {
+                        document.getElementById('multipleUrls').value = '';
+                    }
+                } else {
+                    displayResult({ error: result.error }, true);
+                }
+            } catch (error) {
+                displayResult({ error: error.message }, true);
+            } finally {
+                document.getElementById('loading').classList.remove('active');
+                
+                // Re-enable appropriate buttons
+                if (currentMode === 'multiple') {
+                    document.getElementById('submitMultipleBtn').disabled = false;
+                } else {
+                    document.getElementById('submitBtn').disabled = false;
+                    if (document.getElementById('quickSubmit')) {
+                        document.getElementById('quickSubmit').disabled = false;
+                    }
+                }
+            }
+        }
+
+        // Clear input after successful submission
+        function clearInput() {
+            document.getElementById('quickSubmit').value = '';
+        }
+
+        document.getElementById('extractForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await submitExtraction();
+        });
+
+        document.getElementById('submitBtn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            await submitExtraction();
+        });
+
+        document.getElementById('quickSubmit').addEventListener('keypress', async (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                await submitExtraction();
+            }
+        });
+
+        // Submit buttons for multiple URLs and CSV modes
+        document.getElementById('submitMultipleBtn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            await submitExtraction();
+        });
+
+        document.getElementById('submitCsvBtn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            await submitExtraction();
+        });
+
+        // CSV file change handler to parse and display URLs
+        document.getElementById('csvFile').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) {
+                document.getElementById('csvPreview').style.display = 'none';
+                document.getElementById('submitCsvBtn').disabled = true;
+                return;
+            }
+
+            if (!file.name.endsWith('.csv')) {
+                alert('Please select a CSV file');
+                e.target.value = '';
+                document.getElementById('csvPreview').style.display = 'none';
+                document.getElementById('submitCsvBtn').disabled = true;
+                return;
+            }
+
+            try {
+                const text = await file.text();
+                const lines = text.split(/\r?\n/);
+                const urls = [];
+                
+                // Parse CSV - assuming first column contains URLs
+                for (let line of lines) {
+                    line = line.trim();
+                    if (!line) continue;
+                    
+                    // Better CSV parsing that handles quoted fields
+                    let firstColumn = '';
+                    let inQuotes = false;
+                    let currentField = '';
+                    
+                    for (let i = 0; i < line.length; i++) {
+                        const char = line[i];
+                        if (char === '"') {
+                            inQuotes = !inQuotes;
+                        } else if (char === ',' && !inQuotes) {
+                            firstColumn = currentField.trim();
+                            break;
+                        } else {
+                            currentField += char;
+                        }
+                    }
+                    
+                    // If no comma found, use the whole line
+                    if (!firstColumn) {
+                        firstColumn = currentField.trim();
+                    }
+                    
+                    // Remove surrounding quotes if present
+                    firstColumn = firstColumn.replace(/^["']|["']$/g, '');
+                    
+                    if (firstColumn && (firstColumn.startsWith('http://') || firstColumn.startsWith('https://'))) {
+                        urls.push(firstColumn);
+                    }
+                }
+
+                if (urls.length === 0) {
+                    alert('No valid URLs found in CSV file. Please ensure URLs are in the first column.');
+                    e.target.value = '';
+                    document.getElementById('csvPreview').style.display = 'none';
+                    document.getElementById('submitCsvBtn').disabled = true;
+                    return;
+                }
+
+                // Display URL count and list
+                document.getElementById('urlCount').textContent = urls.length;
+                
+                const urlListDiv = document.getElementById('urlList');
+                urlListDiv.innerHTML = urls.map((url, index) => 
+                    `<div style="padding: 8px; margin-bottom: 4px; background: #f7f7f8; border-radius: 4px; border-left: 3px solid #10a37f;">
+                        <span style="color: #8e8ea0; font-size: 12px; margin-right: 8px;">${index + 1}.</span>
+                        <span style="color: #353740; font-size: 13px; word-break: break-all;">${url}</span>
+                    </div>`
+                ).join('');
+
+                document.getElementById('csvPreview').style.display = 'block';
+                document.getElementById('submitCsvBtn').disabled = false;
+            } catch (error) {
+                console.error('Error parsing CSV:', error);
+                alert('Error reading CSV file: ' + error.message);
+                e.target.value = '';
+                document.getElementById('csvPreview').style.display = 'none';
+                document.getElementById('submitCsvBtn').disabled = true;
+            }
+        });
+
+        // Load fields on page load
+        loadFields();
+    </script>
+</body>
+</html>
+

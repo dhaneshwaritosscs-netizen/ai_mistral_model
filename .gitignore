@@ -1,0 +1,39 @@
+# Environment and tokens
+.env
+token.md
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Flask
+instance/
+.webassets-cache
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+tmp_page.png
+*.png
+*.jpg
+*.jpeg
+
+# Large model files (exceed GitHub's 2GB limit)
+# Use Hugging Face Hub instead: https://huggingface.co/docs/hub/how-to-upstream
+*.safetensors
+consolidated.safetensors
+model-*.safetensors
