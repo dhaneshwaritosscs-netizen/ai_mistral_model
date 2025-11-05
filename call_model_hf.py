@@ -4,6 +4,91 @@ import json
 
 MODEL = "mistralai/Mistral-7B-Instruct-v0.2"  # <--- replace with correct model id or mixtral id
 
+# Global variables for local model
+_local_model = None
+_local_tokenizer = None
+_model_loaded = False
+
+def get_local_model_path():
+    """Get the path to the local model directory"""
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    model_index = os.path.join(current_dir, "model.safetensors.index.json")
+    if os.path.exists(model_index):
+        return current_dir
+    return None
+
+def load_local_model():
+    """Load the local Mistral model from disk"""
+    global _local_model, _local_tokenizer, _model_loaded
+    
+    if _model_loaded:
+        return _local_model, _local_tokenizer
+    
+    try:
+        model_path = get_local_model_path()
+        if not model_path:
+            return None, None
+        
+        print(f"Loading local model from: {model_path}")
+        
+        from transformers import AutoModelForCausalLM, AutoTokenizer
+        import torch
+        
+        _local_tokenizer = AutoTokenizer.from_pretrained(model_path, local_files_only=True)
+        print("Loading model... (this may take a few minutes)")
+        _local_model = AutoModelForCausalLM.from_pretrained(
+            model_path,
+            torch_dtype=torch.bfloat16,
+            device_map="auto",
+            local_files_only=True
+        )
+        
+        _model_loaded = True
+        print("✅ Local model loaded successfully!")
+        return _local_model, _local_tokenizer
+        
+    except Exception as e:
+        print(f"Error loading local model: {e}")
+        return None, None
+
+def call_local_model(prompt: str, max_new_tokens: int = 4096, temperature: float = 0.0):
+    """Call the local Mistral model directly (no API needed)"""
+    global _local_model, _local_tokenizer
+    
+    if not _model_loaded:
+        model, tokenizer = load_local_model()
+        if model is None or tokenizer is None:
+            raise ValueError("Local model could not be loaded")
+    
+    try:
+        import torch
+        
+        # Format prompt using chat template if available
+        if hasattr(_local_tokenizer, 'apply_chat_template') and _local_tokenizer.chat_template:
+            messages = [{"role": "user", "content": prompt}]
+            formatted_prompt = _local_tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        else:
+            formatted_prompt = f"[INST] {prompt} [/INST]"
+        
+        inputs = _local_tokenizer(formatted_prompt, return_tensors="pt")
+        device = next(_local_model.parameters()).device
+        inputs = {k: v.to(device) for k, v in inputs.items()}
+        
+        with torch.no_grad():
+            outputs = _local_model.generate(
+                **inputs,
+                max_new_tokens=max_new_tokens,
+                temperature=temperature,
+                do_sample=(temperature > 0),
+                pad_token_id=_local_tokenizer.eos_token_id
+            )
+        
+        generated_text = _local_tokenizer.decode(outputs[0][inputs['input_ids'].shape[1]:], skip_special_tokens=True)
+        return generated_text.strip()
+        
+    except Exception as e:
+        raise Exception(f"Error calling local model: {e}")
+
 def get_hf_token():
     """Get HF_TOKEN from environment (reads dynamically)"""
     return os.environ.get("HF_TOKEN")
@@ -105,7 +190,8 @@ def call_mistral_api(prompt: str, max_retries: int = 3):
 
 def call_hf_inference(prompt: str, model: str = MODEL, max_retries: int = 3, use_mistral_api=False):
     """
-    Call Hugging Face Inference API or Mistral API with retry logic.
+    Call local model, Hugging Face Inference API, or Mistral API with retry logic.
+    Priority: 1) Local model 2) Mistral API 3) HF API
     
     Args:
         prompt: The prompt to send to the model
@@ -114,8 +200,19 @@ def call_hf_inference(prompt: str, model: str = MODEL, max_retries: int = 3, use
         use_mistral_api: If True, use Mistral API directly instead of HF
     
     Returns:
-        dict: Response from the API
+        dict: Response from the model/API
     """
+    # FIRST: Try local model if available
+    model_path = get_local_model_path()
+    if model_path:
+        try:
+            print("Using local model (no API/token needed)...")
+            generated_text = call_local_model(prompt, max_new_tokens=4096, temperature=0.0)
+            return {"generated_text": generated_text}
+        except Exception as e:
+            print(f"Local model failed: {e}")
+            print("Falling back to API...")
+    
     # Get tokens dynamically
     mistral_key = get_mistral_api_key()
     hf_token = get_hf_token()
@@ -187,18 +284,23 @@ def call_hf_inference(prompt: str, model: str = MODEL, max_retries: int = 3, use
             else:
                 raise
 
-def extract_json_from_response(resp, is_mistral=False):
+def extract_json_from_response(resp, is_mistral=False, is_local=False):
     """
-    Extract JSON from API response (Hugging Face or Mistral).
+    Extract JSON from API response (Hugging Face, Mistral, or local model).
     
     Args:
-        resp: Response from API
+        resp: Response from API or local model
         is_mistral: Whether this is a Mistral API response
+        is_local: Whether this is from local model
     
     Returns:
         str: Extracted text from the response
     """
-    if is_mistral:
+    if is_local:
+        if isinstance(resp, dict):
+            return resp.get("generated_text", str(resp))
+        return str(resp)
+    elif is_mistral:
         # Mistral API response format
         if isinstance(resp, dict):
             choices = resp.get("choices", [])

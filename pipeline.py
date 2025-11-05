@@ -790,18 +790,24 @@ def run(url, fields=None, use_dom_first=True, use_ocr_fallback=True):
         except ImportError:
             pass
         
-        # Detect if we should use Mistral API based on token format
+        # Check if local model is available
+        from call_model_hf import get_local_model_path
+        use_local = get_local_model_path() is not None
+        
+        # Detect if we should use Mistral API (only if local model not available)
         import os
         api_key = os.environ.get("HF_TOKEN") or os.environ.get("MISTRAL_API_KEY")
-        use_mistral = api_key and not api_key.startswith("hf_")
+        use_mistral = not use_local and api_key and not api_key.startswith("hf_")
         
-        if use_mistral:
+        if use_local:
+            print("Using local model (no API/token needed)...")
+        elif use_mistral:
             print("Calling Mistral API...")
         else:
             print("Calling Hugging Face model...")
         
         out = call_hf_inference(prompt, use_mistral_api=use_mistral)
-        model_txt = extract_json_from_response(out, is_mistral=use_mistral)
+        model_txt = extract_json_from_response(out, is_mistral=use_mistral, is_local=use_local)
         
         # Debug: print FULL model response
         print(f"\n{'='*60}")
