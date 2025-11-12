@@ -38,7 +38,7 @@ def load_local_model():
         print("Loading model... (this may take a few minutes)")
         _local_model = AutoModelForCausalLM.from_pretrained(
             model_path,
-            torch_dtype=torch.bfloat16,
+            dtype=torch.bfloat16,
             device_map="auto",
             local_files_only=True
         )
@@ -191,7 +191,7 @@ def call_mistral_api(prompt: str, max_retries: int = 3):
 def call_hf_inference(prompt: str, model: str = MODEL, max_retries: int = 3, use_mistral_api=False):
     """
     Call local model, Hugging Face Inference API, or Mistral API with retry logic.
-    Priority: 1) Local model 2) Mistral API 3) HF API
+    Priority: 1) API with token (if token available) 2) Local model 3) Mistral API 4) HF API
     
     Args:
         prompt: The prompt to send to the model
@@ -202,20 +202,24 @@ def call_hf_inference(prompt: str, model: str = MODEL, max_retries: int = 3, use
     Returns:
         dict: Response from the model/API
     """
-    # FIRST: Try local model if available
-    model_path = get_local_model_path()
-    if model_path:
-        try:
-            print("Using local model (no API/token needed)...")
-            generated_text = call_local_model(prompt, max_new_tokens=4096, temperature=0.0)
-            return {"generated_text": generated_text}
-        except Exception as e:
-            print(f"Local model failed: {e}")
-            print("Falling back to API...")
-    
-    # Get tokens dynamically
+    # Get tokens dynamically FIRST - ALWAYS prioritize token over local model
     mistral_key = get_mistral_api_key()
     hf_token = get_hf_token()
+    
+    # If token is available, ALWAYS skip local model and use API directly
+    if hf_token or mistral_key:
+        print(f"✓ Token available - using API instead of local model...")
+    else:
+        # Only try local model if no token is available
+        model_path = get_local_model_path()
+        if model_path:
+            try:
+                print("Using local model (no API/token available)...")
+                generated_text = call_local_model(prompt, max_new_tokens=4096, temperature=0.0)
+                return {"generated_text": generated_text}
+            except Exception as e:
+                print(f"Local model failed: {e}")
+                print("Falling back to API...")
     
     # Try Mistral API first if key format suggests it or explicitly requested
     if use_mistral_api or (mistral_key and not mistral_key.startswith("hf_")):
@@ -256,14 +260,18 @@ def call_hf_inference(prompt: str, model: str = MODEL, max_retries: int = 3, use
                     raise  # Re-raise if no valid HF token
     
     # Check if we have a valid HF token before trying HF API
-    if not hf_token or not hf_token.startswith("hf_"):
+    # If token doesn't start with "hf_", try it anyway (might be a different HF token format)
+    if not hf_token:
         raise ValueError(
             "HF_TOKEN not set or invalid.\n"
-            "💡 To use HuggingFace API, set a valid token (starts with 'hf_'):\n"
-            "   - Windows PowerShell: $env:HF_TOKEN = 'hf_...'\n"
-            "   - Or add to token.md: $env:HF_TOKEN = 'hf_...'\n"
-            "💡 Your current token appears to be a Mistral API key (not HF token)."
+            "💡 To use HuggingFace API, set a valid token:\n"
+            "   - Windows PowerShell: $env:HF_TOKEN = 'your_token'\n"
+            "   - Or add to token.md: $env:HF_TOKEN = 'your_token'\n"
         )
+    
+    # Try HF API even if token doesn't start with "hf_" (some tokens might have different format)
+    if not hf_token.startswith("hf_"):
+        print(f"⚠ Note: Token doesn't start with 'hf_' - trying HuggingFace API anyway...")
     
     url = f"https://api-inference.huggingface.co/models/{model}"
     headers = {"Authorization": f"Bearer {hf_token}", "Content-Type": "application/json"}

@@ -1,6 +1,413 @@
 from playwright.sync_api import sync_playwright
 from PIL import Image
 import io
+import time
+
+
+def _close_popups(page):
+    """
+    Close ALL popups/modals that appear anywhere on the page (top, bottom, center, etc.).
+    Tries multiple comprehensive strategies to remove all popups before taking screenshot.
+    """
+    try:
+        # Wait a bit for popups to appear
+        page.wait_for_timeout(1500)
+        
+        # Strategy 1: Use JavaScript to find and close ALL popups comprehensively
+        try:
+            closed_count = page.evaluate("""
+                (() => {
+                    let closed_count = 0;
+                    
+                    // Find all possible popup/modal/overlay elements by various patterns
+                    const popupSelectors = [
+                        // Common popup/modal classes
+                        '[class*="popup" i]',
+                        '[class*="modal" i]',
+                        '[class*="overlay" i]',
+                        '[class*="cookie" i]',
+                        '[class*="banner" i]',
+                        '[class*="notification" i]',
+                        '[class*="consent" i]',
+                        '[class*="dialog" i]',
+                        '[class*="drawer" i]',
+                        '[class*="slideout" i]',
+                        '[class*="toast" i]',
+                        '[class*="alert" i]',
+                        '[id*="popup" i]',
+                        '[id*="modal" i]',
+                        '[id*="cookie" i]',
+                        '[id*="banner" i]',
+                        '[id*="consent" i]',
+                        '[id*="notification" i]',
+                        // Fixed position elements that might be popups
+                        '[style*="position: fixed"]',
+                        '[style*="position:fixed"]',
+                        '[style*="z-index"]',
+                        // Common cookie consent patterns
+                        '[class*="cookie-consent"]',
+                        '[class*="cookie-banner"]',
+                        '[class*="gdpr"]',
+                        '[class*="cc-banner"]',
+                        '[class*="cookie-notice"]',
+                    ];
+                    
+                    const allPopups = new Set();
+                    
+                    // Collect all popup elements
+                    popupSelectors.forEach(selector => {
+                        try {
+                            document.querySelectorAll(selector).forEach(el => {
+                                const style = window.getComputedStyle(el);
+                                const rect = el.getBoundingClientRect();
+                                
+                                // Check if element is visible and positioned like a popup
+                                if (style.display !== 'none' && 
+                                    style.visibility !== 'hidden' && 
+                                    style.opacity !== '0' &&
+                                    rect.width > 50 && 
+                                    rect.height > 50) {
+                                    allPopups.add(el);
+                                }
+                            });
+                        } catch(e) {}
+                    });
+                    
+                    // Also find elements with high z-index that might be overlays
+                    document.querySelectorAll('*').forEach(el => {
+                        try {
+                            const style = window.getComputedStyle(el);
+                            const zIndex = parseInt(style.zIndex) || 0;
+                            const position = style.position;
+                            const rect = el.getBoundingClientRect();
+                            
+                            // High z-index fixed/sticky elements are likely popups
+                            if ((position === 'fixed' || position === 'sticky') &&
+                                zIndex > 100 &&
+                                rect.width > 100 && 
+                                rect.height > 50) {
+                                allPopups.add(el);
+                            }
+                        } catch(e) {}
+                    });
+                    
+                    // Try to close each popup by finding close buttons first
+                    allPopups.forEach(popup => {
+                        try {
+                            // Look for close buttons within the popup
+                            let closeButtons = Array.from(popup.querySelectorAll(
+                                'button[aria-label*="close" i], ' +
+                                'button[class*="close" i], ' +
+                                '[class*="close" i][class*="button" i], ' +
+                                '[data-testid*="close" i], ' +
+                                '.close, .close-btn, .close-button, .modal-close, .popup-close'
+                            ));
+                            
+                            // Also check for buttons with X text
+                            popup.querySelectorAll('button').forEach(btn => {
+                                const text = btn.textContent || btn.innerText || '';
+                                if (text.trim() === '×' || text.trim() === '✕' || text.trim() === 'X' || text.trim() === 'x') {
+                                    closeButtons.push(btn);
+                                }
+                            });
+                            
+                            let popup_closed = false;
+                            closeButtons.forEach(btn => {
+                                try {
+                                    const btnStyle = window.getComputedStyle(btn);
+                                    if (btnStyle.display !== 'none' && btnStyle.visibility !== 'hidden') {
+                                        btn.click();
+                                        popup_closed = true;
+                                    }
+                                } catch(e) {}
+                            });
+                            
+                            // If no close button found, try clicking action buttons
+                            if (!popup_closed) {
+                                const actionTexts = ['ALLOW ALL', 'Allow All', 'ALLOW', 'ACCEPT', 'Accept', 'ACCEPT ALL', 
+                                                    'AGREE', 'Agree', 'OK', 'Got it', 'I understand', 'Continue', 
+                                                    'CONTINUE', 'GO SHOPPING', 'DENY', 'Deny', 'REJECT', 'Reject'];
+                                
+                                let actionButtons = Array.from(popup.querySelectorAll(
+                                    '[class*="accept" i], ' +
+                                    '[class*="allow" i], ' +
+                                    '[class*="agree" i], ' +
+                                    '[class*="deny" i], ' +
+                                    '[class*="reject" i]'
+                                ));
+                                
+                                // Also find buttons with action text
+                                popup.querySelectorAll('button').forEach(btn => {
+                                    const text = (btn.textContent || btn.innerText || '').trim();
+                                    if (actionTexts.some(actionText => text.includes(actionText))) {
+                                        actionButtons.push(btn);
+                                    }
+                                });
+                                
+                                actionButtons.forEach(btn => {
+                                    try {
+                                        const btnStyle = window.getComputedStyle(btn);
+                                        if (btnStyle.display !== 'none' && btnStyle.visibility !== 'hidden') {
+                                            btn.click();
+                                            popup_closed = true;
+                                            return;
+                                        }
+                                    } catch(e) {}
+                                });
+                            }
+                            
+                            // If still not closed, hide it directly
+                            if (!popup_closed && popup.style) {
+                                popup.style.display = 'none';
+                                popup.style.visibility = 'hidden';
+                                popup_closed = true;
+                            }
+                            
+                            if (popup_closed) {
+                                closed_count++;
+                            }
+                        } catch(e) {}
+                    });
+                    
+                    return closed_count;
+                })()
+            """)
+            
+            if closed_count > 0:
+                print(f"Closed {closed_count} popup(s) using JavaScript")
+                page.wait_for_timeout(500)
+        except Exception as e:
+            print(f"JavaScript popup closing warning: {e}")
+        
+        # Strategy 2: Press ESC key multiple times (closes most modals)
+        try:
+            for _ in range(3):
+                page.keyboard.press("Escape")
+                page.wait_for_timeout(300)
+        except:
+            pass
+        
+        # Strategy 3: Click ALL close buttons (not just first one)
+        close_selectors = [
+            # Common close button patterns
+            'button[aria-label*="close" i]',
+            'button[aria-label*="Close" i]',
+            'button[aria-label*="CLOSE" i]',
+            '[class*="modal-close"]',
+            '[class*="popup-close"]',
+            '[class*="close-button"]',
+            '[id*="close" i]',
+            '[id*="Close" i]',
+            '[class*="icon-close"]',
+            '[class*="IconClose"]',
+            # SVG close icons
+            'svg[class*="close" i]',
+            'svg[aria-label*="close" i]',
+            # Specific common patterns
+            '[data-testid*="close" i]',
+            '[data-testid*="Close" i]',
+            '.close-icon',
+            '.close-btn',
+            '.modal-close-btn',
+            '.popup-close-btn',
+        ]
+        
+        # Click all matching close buttons (not just first)
+        for selector in close_selectors:
+            try:
+                elements = page.query_selector_all(selector)
+                for element in elements:
+                    try:
+                        is_visible = page.evaluate(f"""
+                            (() => {{
+                                const el = arguments[0];
+                                if (!el) return false;
+                                const style = window.getComputedStyle(el);
+                                return style.display !== 'none' && 
+                                       style.visibility !== 'hidden' && 
+                                       style.opacity !== '0' &&
+                                       el.offsetParent !== null;
+                            }})()
+                        """, element)
+                        
+                        if is_visible:
+                            element.click(timeout=1000)
+                            page.wait_for_timeout(300)
+                            print(f"Closed popup using selector: {selector}")
+                    except:
+                        continue
+            except:
+                continue
+        
+        # Also try to find buttons with X text using locator
+        try:
+            x_texts = ['×', '✕', 'X', 'x']
+            for x_text in x_texts:
+                try:
+                    # Try to click all X buttons, not just first
+                    buttons = page.locator(f'button:has-text("{x_text}")').all()
+                    for btn in buttons:
+                        try:
+                            if btn.is_visible():
+                                btn.click(timeout=1000)
+                                page.wait_for_timeout(300)
+                                print(f"Closed popup using X button with text: {x_text}")
+                        except:
+                            continue
+                except:
+                    continue
+        except:
+            pass
+        
+        # Strategy 4: Click action buttons (Accept, Allow, Deny, etc.) - click ALL of them
+        try:
+            action_texts = [
+                "ALLOW ALL", "Allow All", "ALLOW", "Allow",
+                "ACCEPT", "Accept", "ACCEPT ALL", "Accept All",
+                "AGREE", "Agree", "I AGREE", "I Agree",
+                "OK", "Got it", "I understand", "I Understand",
+                "Continue", "CONTINUE", "GO SHOPPING", "Go Shopping",
+                "DENY", "Deny", "REJECT", "Reject",
+                "CUSTOMIZE", "Customize", "ALLOW SELECTION", "Allow Selection"
+            ]
+            
+            for text in action_texts:
+                try:
+                    # Click ALL buttons with this text, not just first
+                    buttons = page.locator(f'button:has-text("{text}")').all()
+                    for btn in buttons:
+                        try:
+                            if btn.is_visible():
+                                btn.click(timeout=1000)
+                                page.wait_for_timeout(500)
+                                print(f"Clicked action button with text: {text}")
+                        except:
+                            continue
+                except:
+                    continue
+            
+            # Also try class-based selectors
+            action_selectors = [
+                '[class*="continue-button"]',
+                '[class*="go-shopping"]',
+                '[class*="accept"]',
+                '[class*="allow"]',
+                '[class*="agree"]',
+                '[class*="deny"]',
+                '[class*="reject"]',
+            ]
+            
+            for selector in action_selectors:
+                try:
+                    elements = page.query_selector_all(selector)
+                    for element in elements:
+                        try:
+                            is_visible = page.evaluate(f"""
+                                (() => {{
+                                    const el = arguments[0];
+                                    if (!el) return false;
+                                    const style = window.getComputedStyle(el);
+                                    return style.display !== 'none' && 
+                                           style.visibility !== 'hidden';
+                                }})()
+                            """, element)
+                            if is_visible:
+                                element.click(timeout=1000)
+                                page.wait_for_timeout(500)
+                                print(f"Clicked action button: {selector}")
+                        except:
+                            continue
+                except:
+                    continue
+        except:
+            pass
+        
+        # Strategy 5: Click outside modal/overlay (backdrop click) - try all overlays
+        try:
+            overlay_selectors = [
+                '[class*="overlay" i]',
+                '[class*="backdrop" i]',
+                '[class*="modal-overlay" i]',
+                '[class*="popup-overlay" i]',
+                '[class*="modal-backdrop" i]',
+            ]
+            
+            for selector in overlay_selectors:
+                try:
+                    elements = page.query_selector_all(selector)
+                    for element in elements:
+                        try:
+                            box = element.bounding_box()
+                            if box and box['width'] > 100 and box['height'] > 100:
+                                # Click at center of overlay (usually closes modal)
+                                page.mouse.click(box['x'] + box['width'] / 2, box['y'] + box['height'] / 2)
+                                page.wait_for_timeout(300)
+                                print(f"Clicked overlay to close popup: {selector}")
+                        except:
+                            continue
+                except:
+                    continue
+        except:
+            pass
+        
+        # Strategy 6: Final cleanup - hide any remaining fixed position elements that might be popups
+        try:
+            page.evaluate("""
+                // Find and hide any remaining fixed/sticky elements with high z-index
+                document.querySelectorAll('*').forEach(el => {
+                    try {
+                        const style = window.getComputedStyle(el);
+                        const position = style.position;
+                        const zIndex = parseInt(style.zIndex) || 0;
+                        const rect = el.getBoundingClientRect();
+                        
+                        // Hide fixed/sticky elements that look like popups
+                        if ((position === 'fixed' || position === 'sticky') &&
+                            zIndex > 500 &&
+                            rect.width > 200 && 
+                            rect.height > 100 &&
+                            style.display !== 'none') {
+                            
+                            // Check if it's a cookie/popup related element
+                            const className = el.className?.toLowerCase() || '';
+                            const id = el.id?.toLowerCase() || '';
+                            
+                            if (className.includes('cookie') || 
+                                className.includes('popup') || 
+                                className.includes('modal') || 
+                                className.includes('banner') ||
+                                className.includes('consent') ||
+                                className.includes('notification') ||
+                                id.includes('cookie') ||
+                                id.includes('popup') ||
+                                id.includes('modal') ||
+                                id.includes('banner') ||
+                                id.includes('consent')) {
+                                el.style.display = 'none';
+                                el.style.visibility = 'hidden';
+                            }
+                        }
+                    } catch(e) {}
+                });
+            """)
+            page.wait_for_timeout(300)
+        except:
+            pass
+        
+        # Final wait to ensure all popups are closed
+        page.wait_for_timeout(800)
+        
+        # Final check: Press ESC one more time
+        try:
+            page.keyboard.press("Escape")
+            page.wait_for_timeout(300)
+        except:
+            pass
+        
+    except Exception as e:
+        print(f"Popup closing warning: {e}")
+        # Continue even if popup closing fails - still try to take screenshot
+
 
 def capture_fullpage(url: str, out_path: str = "screenshot.png", viewport=(1280, 2000)):
     """
@@ -71,7 +478,10 @@ def _capture_with_homepage_first(url: str, homepage_url: str, out_path: str, vie
             '--window-size=1920,1080'
         ]
         
+        #  use playwright chrome on headless mode (to open up the browser and see the popup)
         browser = p.chromium.launch(headless=True, args=browser_args)
+        # browser = p.chromium.launch(channel="chrome", headless=False)
+        
         
         context = browser.new_context(
             viewport={"width": viewport[0], "height": viewport[1]},
@@ -222,6 +632,9 @@ def _capture_with_homepage_first(url: str, homepage_url: str, out_path: str, vie
         
         page.wait_for_timeout(2000)
         
+        # Close any popups before taking screenshot
+        _close_popups(page)
+        
         # Take screenshot
         page.screenshot(path=out_path, full_page=True)
         browser.close()
@@ -272,6 +685,9 @@ def _capture_with_mobile_ua(url: str, homepage_url: str, out_path: str, viewport
         page_text = page.inner_text("body").lower()
         if "access denied" in page_text or "you don't have permission" in page_text:
             raise Exception("Access denied detected")
+        
+        # Close any popups before taking screenshot
+        _close_popups(page)
         
         page.screenshot(path=out_path, full_page=True)
         browser.close()
@@ -356,6 +772,9 @@ def _capture_with_stealth(url: str, homepage_url: str, out_path: str, viewport, 
         if "access denied" in page_text or "you don't have permission" in page_text:
             raise Exception("Access denied detected")
         
+        # Close any popups before taking screenshot
+        _close_popups(page)
+        
         page.screenshot(path=out_path, full_page=True)
         browser.close()
         return out_path
@@ -398,6 +817,9 @@ def _capture_with_firefox(url: str, homepage_url: str, out_path: str, viewport, 
             page_text = page.inner_text("body").lower()
             if "access denied" in page_text or "you don't have permission" in page_text:
                 raise Exception("Access denied detected")
+            
+            # Close any popups before taking screenshot
+            _close_popups(page)
             
             page.screenshot(path=out_path, full_page=True)
             browser.close()
@@ -657,6 +1079,9 @@ def _try_myntra_chromium_stealth(url: str, out_path: str, viewport=(1280, 2000))
         # Wait for any remaining content
         page.wait_for_timeout(2000)
         
+        # Close any popups before taking screenshot
+        _close_popups(page)
+        
         # Take screenshot
         page.screenshot(path=out_path, full_page=True)
         browser.close()
@@ -694,6 +1119,10 @@ def _try_myntra_firefox(url: str, out_path: str, viewport=(1280, 2000)):
             
             page.goto(url, wait_until="domcontentloaded", timeout=60000)
             page.wait_for_timeout(5000)
+            
+            # Close any popups before taking screenshot
+            _close_popups(page)
+            
             page.screenshot(path=out_path, full_page=True)
             browser.close()
             return out_path
@@ -757,6 +1186,9 @@ def _try_myntra_mobile(url: str, out_path: str, viewport=(1280, 2000)):
             content_check = page.evaluate("document.body && document.body.innerText ? document.body.innerText.length : 0")
             if content_check < 50:
                 page.wait_for_timeout(3000)
+            
+            # Close any popups before taking screenshot
+            _close_popups(page)
             
             page.screenshot(path=out_path, full_page=True)
         except Exception as e:
@@ -824,6 +1256,9 @@ def _try_myntra_non_headless(url: str, out_path: str, viewport=(1280, 2000)):
             if content_length < 100:
                 page.wait_for_timeout(3000)
             
+            # Close any popups before taking screenshot
+            _close_popups(page)
+            
             page.screenshot(path=out_path, full_page=True)
         except Exception as e:
             print(f"Non-headless strategy error: {e}")
@@ -856,8 +1291,17 @@ def _try_myntra_chromium_alt(url: str, out_path: str, viewport=(1280, 2000)):
         try:
             page.goto(url, wait_until="load", timeout=60000)
             page.wait_for_timeout(5000)
+            
+            # Close any popups before taking screenshot
+            _close_popups(page)
+            
             page.screenshot(path=out_path, full_page=True)
         except:
+            # Close any popups even if navigation failed
+            try:
+                _close_popups(page)
+            except:
+                pass
             page.screenshot(path=out_path, full_page=False)
         
         browser.close()
@@ -867,4 +1311,5 @@ if __name__ == "__main__":
     url = "https://www.meesho.com/example-product-url"   # replace
     p = capture_fullpage(url, "product_page.png")
     print("Saved:", p)
+
 
