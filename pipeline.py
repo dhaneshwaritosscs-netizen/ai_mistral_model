@@ -166,6 +166,24 @@ FIELD_DEFINITIONS = {
         "type": "string",
         "example": "20% off"
     },
+    "markdown": {
+        "description": "Discount percentage or amount (markdown means discount)",
+        "rules": [
+            "Find discount/markdown information:",
+            "- Look for '% off', 'discount', 'markdown', 'save', 'off', 'reduction'",
+            "- Patterns: '20% off', 'Save 20%', '₹100 off', '20% discount', '54% off', '54% markdown'",
+            "- Look for percentage discounts like '54%', '20%', '30%' near price or MRP",
+            "- May appear as '54% off', 'Save 54%', '54% discount', '54% markdown'",
+            "- Extract the discount percentage or amount",
+            "- CRITICAL: Read percentage EXACTLY as shown - if you see '54% off', extract exactly '54%' or '54% off', not '50%' or '60%'",
+            "- OCR may split: '54%' might appear as '54 %' or '5 4%' - read as exactly '54%'",
+            "- Read each digit carefully: '54%' not '50%' or '64%' (unless shown)",
+            "- Return as string with percentage symbol (e.g., '54%', '54% off', '20%')",
+            "- If discount amount is shown (like '₹100 off'), extract that instead"
+        ],
+        "type": "string",
+        "example": "54% off"
+    },
     "availability": {
         "description": "Product availability status",
         "rules": [
@@ -176,6 +194,22 @@ FIELD_DEFINITIONS = {
         ],
         "type": "string",
         "example": "In Stock"
+    },
+    "synonyms": {
+        "description": "Product synonyms, alternative names, or related search terms",
+        "rules": [
+            "Find synonyms, alternative names, or related terms for the product:",
+            "- Look for alternative product names, variations, or similar terms",
+            "- Check for related keywords, search terms, or tags",
+            "- May appear in product tags, keywords section, or related products",
+            "- Look for terms like 'also known as', 'also called', 'similar to', 'related terms'",
+            "- Extract all alternative names, variations, or synonyms",
+            "- Can be comma-separated list or array of terms",
+            "- If multiple synonyms found, extract all of them",
+            "- Return as string (comma-separated) or array"
+        ],
+        "type": "string",
+        "example": "T-shirt, Tee, Shirt, Top"
     }
 }
 

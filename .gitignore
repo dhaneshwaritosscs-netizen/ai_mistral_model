@@ -1,7 +1,4 @@
 # Environment and tokens
-.env
-token.md
-
 # Python
 __pycache__/
 *.py[cod]
@@ -27,11 +24,6 @@ instance/
 Thumbs.db
 
 # Project specific
-tmp_page.png
-*.png
-*.jpg
-*.jpeg
-
 # Large model files (exceed GitHub's 2GB limit)
 # Use Hugging Face Hub instead: https://huggingface.co/docs/hub/how-to-upstream
 *.safetensors
