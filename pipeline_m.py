@@ -254,25 +254,26 @@ def run(url, use_dom_first=True, use_ocr_fallback=True):
     prompt = REVIEW_PROMPT_TEMPLATE.format(input_text=text_to_use)
     
     try:
-        # ALWAYS prioritize token over local model
+        # Try local model first, fallback to API if it fails
         api_key = os.environ.get("HF_TOKEN") or os.environ.get("MISTRAL_API_KEY")
         
-        # Only use local model if NO token is available
+        # Check if local model is available
         from call_model_hf import get_local_model_path
-        use_local = not api_key and get_local_model_path() is not None
+        local_model_available = get_local_model_path() is not None
         
         # Detect if we should use Mistral API (if token exists and doesn't start with "hf_")
         use_mistral = api_key and not api_key.startswith("hf_")
         
-        if use_local:
-            print("Using local model (no API/token available)...")
-        elif use_mistral:
-            print("Calling Mistral API...")
-        else:
-            print("Calling Hugging Face API...")
-        
+        # call_hf_inference will try local model first, then fallback to API
+        # We'll determine which one was used based on the response structure
         out = call_hf_inference(prompt, use_mistral_api=use_mistral)
-        model_txt = extract_json_from_response(out, is_mistral=use_mistral, is_local=use_local)
+        
+        # Determine if response came from local model or API
+        # Local model returns {"generated_text": "..."}, API returns different structure
+        is_local = isinstance(out, dict) and "generated_text" in out and local_model_available
+        is_mistral = use_mistral and not is_local
+        
+        model_txt = extract_json_from_response(out, is_mistral=is_mistral, is_local=is_local)
         
         print(f"\nModel response preview (first 500 chars):")
         print(model_txt[:500])
