@@ -3,7 +3,7 @@ from flask_cors import CORS
 import os
 import csv
 import io
-from pipeline import run
+from pipeline import run, run_on_image
 from config import setup_environment
 
 # Setup environment variables from config files
@@ -186,6 +186,61 @@ def upload_csv():
             'error': str(e)
         }), 500
 
+@app.route('/api/upload-image', methods=['POST'])
+def upload_image():
+    """API endpoint to extract fields from an uploaded image"""
+    try:
+        setup_environment()
+        
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file uploaded'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        # Get fields from form data
+        fields = request.form.get('fields', '')
+        if fields:
+            fields = [f.strip() for f in fields.split(',') if f.strip()]
+        else:
+            fields = None
+            
+        # Ensure uploads directory exists
+        upload_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+        if not os.path.exists(upload_dir):
+            os.makedirs(upload_dir)
+            
+        # Save temporary file
+        from werkzeug.utils import secure_filename
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(upload_dir, filename)
+        file.save(file_path)
+        
+        # Run extraction on image
+        try:
+            result = run_on_image(file_path, fields=fields)
+            
+            # Clean up file
+            if os.path.exists(file_path):
+                os.remove(file_path)
+                
+            return jsonify({
+                'success': True,
+                'data': result
+            })
+        except Exception as e:
+            # Clean up even on error
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            raise e
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/api/fields', methods=['GET'])
 def get_available_fields():
     """Get list of available predefined fields"""
@@ -217,7 +272,7 @@ if __name__ == '__main__':
         print("="*60 + "\n")
     
     port = int(os.environ.get('PORT', 5010))
-    print(f"\n🚀 Starting Flask server on http://localhost:{port}")
-    print("📱 Open http://localhost:5010 in your browser\n")
+    print(f"\n[OK] Starting Flask server on http://localhost:{port}")
+    print("--> Open http://localhost:5010 in your browser\n")
     app.run(debug=True, host='0.0.0.0', port=port)
 
