@@ -4,7 +4,7 @@ import re
 from capture import capture_fullpage
 from ocr import ocr_easyocr, ocr_pytesseract
 from scrape_dom import fetch_dom_text, fetch_dom_with_playwright
-from call_model_hf import call_hf_inference, extract_json_from_response
+from call_model_hf import call_hf_inference, extract_json_from_response, get_local_model_path
 
 # Load config automatically (if not already set)
 try:
@@ -376,118 +376,35 @@ Output: {{"rating": 4.3, "ratings_count": 7624, "source": "ocr"}}
 
 """
     
-    # Build prompt template - escape all JSON braces
-    prompt = """Extract the following information from the FULL extracted text (may contain OCR errors).
+    # Build prompt template
+    prompt = """
+Extract product details from the text below. 
+Return ONLY a JSON object with the requested fields.
 
-CRITICAL INSTRUCTIONS - READ LINE BY LINE:
-1. The text below is extracted LINE BY LINE from a screenshot - read it EXACTLY as it appears
-2. Read each line sequentially from top to bottom, DO NOT skip any lines
-3. IMPORTANT: There is NO LIMIT on the number of fields to extract - extract ALL requested fields
-4. For EACH field (including all custom fields), scan through ALL lines one by one
-5. CRITICAL: When you find a field name (e.g., "SELECT SIZE"), extract ALL content/data under that field
-6. Keep reading line by line after finding the field name and extract EVERYTHING until you see:
-   - A DIFFERENT field/title/section header (like "Delivery Option", "Brand", "Price", etc.)
-   - A new major section that is clearly NOT part of the current field
-7. Examples:
-   - "SELECT SIZE" on line 50, then "S S S M L XL XXL" on line 51, then "Delivery Option" on line 52
-     → Extract "S S S M L XL XXL" (all sizes, stop at "Delivery Option" which is next section)
-   - "SELECTSIZE" (no space) on line 50, then "S M L XL XXL" on line 51, then "ADD TO BAG" on line 52
-     → Extract "S M L XL XXL" (all sizes, stop at "ADD TO BAG" which is next section)
-   - "SELECT SIZE S M L XL" all on same line 50, then "WISHLIST" on line 51
-     → Extract "S M L XL" (all sizes from same line, stop at "WISHLIST" which is next section)
-   - "Available offers:" on line 50, then multiple lines of offers, then "Brand:" on line 60
-     → Extract ALL offers from line 50 to line 59, stop at "Brand:" which is next section
-8. Look for patterns like:
-   - Line N: "Operating System: Android 15"  → Extract "Android 15"
-   - Line N: "SELECT SIZE" followed by Line N+1: "S S S M L XL XXL" → Extract "S S S M L XL XXL"
-   - Line N: "Brand Nothing"  → Extract "Nothing"
-9. Read line by line - if a field name appears on line 50, extract from line 50 onwards until next section
-10. Extract the COMPLETE value/content - extract ALL items/options until next section/title appears
-11. Check specifications sections, "About this item", product details, offers section - READ LINE BY LINE
-12. Extract ALL custom fields - there is NO limit on how many custom attributes you can extract
+INSTRUCTIONS:
+1. Read the text line by line.
+2. For EACH field, find its name and extract the value immediately following it (on same or next lines).
+3. If a field like "SELECT SIZE" has multiple values (e.g., S, M, L), extract ALL of them.
+4. Stop extracting a field when you see a new field name or section title.
+5. Numerical values (Price, Rating) must be read EXACTLY.
 
-EXTRACTION RULES (read LINE BY LINE, handle OCR errors):{rules_text}
+RULES:
+{rules_text}
 
-OUTPUT JSON:
+OUTPUT FORMAT:
+Return ONLY valid JSON:
 {output_json}
 
-CRITICAL OUTPUT REQUIREMENTS:
-- You MUST return ALL requested fields in the JSON output - NO fields should be missing
-- There is ABSOLUTELY NO LIMIT on the number of custom fields - extract ALL of them
-- If 10 custom fields are requested, return all 10. If 50 are requested, return all 50. If 100 are requested, return all 100.
-- Each custom field must have its entry in the JSON: "field_name": "value" or "field_name": null
-- Do NOT skip any custom fields - extract every single one that was requested
-- MOST CRITICAL: For each field, extract ALL content/data until you see another field/title/section
-- Example for "SELECT SIZE": If you see "SELECT SIZE" followed by "S S S M L XL XXL", then "Delivery Option"
-  → Extract "S S S M L XL XXL" (all sizes, stop when "Delivery Option" appears - that's the next section)
-- Example for "Available offers": Extract ALL offers text until you see another field/title (like "Brand", "Price", etc.)
-- Do NOT stop extracting in the middle - extract EVERYTHING under the field until the next section starts
-- If field value spans multiple lines, read ALL lines and extract everything until next section/title
-- For "SELECT SIZE" or similar UI fields: Extract ALL available options (S M L XL XXL, etc.) until next section
-- For "Available offers", "Services", or similar fields: Extract ALL offers/services until next field/title appears
-- Do NOT stop at first period, semicolon, or first item - keep reading until you hit another section/title
-
-SPECIAL HANDLING - LINE BY LINE READING:
-- Read the text EXACTLY as it appears line by line from the screenshot
-- CRITICAL: Read ALL numerical values EXACTLY as they appear - NO MISTAKES in numbers
-- MOST IMPORTANT FOR PRICE/MRP: Count digits carefully - if you see "₹592", it has EXACTLY 3 digits (5, 9, 2). Do NOT read it as "₹202" (wrong digits 2-0-2) or "₹442" (wrong digits 4-4-2).
-- MOST IMPORTANT FOR PRICE/MRP: If you see "₹1,302" or "₹1302", it has EXACTLY 4 digits (1, 3, 0, 2). Do NOT read it as "₹442" (wrong digits 4-4-2) or "2,825" (from ratings - NOT MRP!).
-- CRITICAL FOR MRP: MRP is the STRUCK-THROUGH price NEAR the current price - NOT from ratings section. If you see "2,82,519 ratings", that number "2,82,519" is NOT MRP - ignore it!
-- EXAMPLE FROM REAL DATA: If text shows "₹592" as price, extract EXACTLY "₹592" (digits: 5-9-2). If you extract "₹202" (digits: 2-0-2), that is WRONG - you misread 5 as 2 and 9 as 0.
-- EXAMPLE FROM REAL DATA: If text shows "₹1,302" as MRP (crossed-out near ₹592), extract EXACTLY "₹1,302" (digits: 1-3-0-2). If you extract "2,825" from "2,82,519 ratings", that is WRONG - that's not MRP, that's ratings count!
-- CRITICAL: MRP appears in pricing section near current price. Numbers in "ratings", "reviews", "offers" sections are NOT MRP - ignore them!
-- OCR text may have errors: numbers may be split by spaces
-  * "5 9 2" should be read as "592" (remove spaces between digits)
-  * "1 3 0 2" should be read as "1302" or "1,302" (remove spaces, keep comma if present)
-  * "592" might appear as "5 92", "59 2", or "5 9 2" - ALL should be read as EXACTLY "592"
-  * "1302" might appear as "1 302", "13 02", or "1 3 0 2" - ALL should be read as EXACTLY "1302" or "1,302"
-  * "4 3" should be read as "4.3" (if decimal context) or "43" (if rating like 4 stars)
-  * "7624" might appear as "7 624" or "76 24" - read it as EXACTLY "7624"
-- OCR may MISREAD digits: "592" might be incorrectly read as "202" (5→2, 9→0) or "442" (5→4, 9→4) - CHECK CAREFULLY
-- OCR may MISREAD digits: "1,302" might be incorrectly read as "442" (1→4, 3→4, 0→2, 2 missing) - VERIFY each digit ONE BY ONE
-- Read each digit carefully - if text shows "₹592", extract EXACTLY "592" (3 digits: 5-9-2), NOT "202" (2-0-2) or "442" (4-4-2)
-- Read each digit carefully - if text shows "₹1,302", extract EXACTLY "1,302" (4 digits: 1-3-0-2), NOT "442" (4-4-2) or any other value
-- Handle commas in numbers: "1,302" = keep as "1,302" or "1302" (both valid), "22,011" = "22,011" or "22011"
-- For decimal numbers: "4.0" or "4.3" - read exactly as shown, not "40" or "43"
-- VERIFY: Before returning price/MRP, count the digits and verify:
-  * "₹592" = 3 digits (5, 9, 2) - if you have different digits, you made an error!
-  * "₹1,302" = 4 digits (1, 3, 0, 2) - if you have "₹442" (3 digits: 4, 4, 2), you made an error!
-- For price and MRP: If a price is struck-through (crossed out), it is MRP, NOT the current price
-- Current price is the one that is NOT struck-through. Struck-through price = MRP.
-- DOUBLE CHECK: After extracting price/MRP, verify the digits match what you see in the text. If digits don't match, you misread them - try again!
-- Field values appear on the SAME LINE as field name OR on the NEXT LINES until another section/title appears
-- CRITICAL: For each field, extract ALL content/data by reading line by line until you hit another field/title/section
-- Example: If line 25 says "SELECT SIZE", then extract from line 25 onwards until you see another field (like "Delivery Option" on line 27)
-  → Extract everything from line 25 to line 26 (all sizes/options), stop at line 27 where new section starts
-- For UI elements like buttons/dropdowns (e.g., "SELECT SIZE"): Extract ALL options/values shown until next section
-  * "SELECT SIZE" on line 50, "S S S M L XL XXL" on line 51, "Delivery Option" on line 52
-  → Extract "S S S M L XL XXL" (all sizes, stop at "Delivery Option")
-- For multi-word fields: "Operating System" might appear as "OperatingSystem" or "Operating  System"
-- Common patterns (read line by line):
-  * Line: "Brand: Nothing" → Extract "Nothing"  
-  * Line: "Brand" followed by next line: "Nothing" → Extract "Nothing"
-  * Line: "Operating System: Android 15" → Extract "Android 15"
-  * Line: "SELECT SIZE" or "SELECTSIZE" followed by "S S S M L XL XXL", then "Delivery Option" or "ADD TO BAG" → Extract "S S S M L XL XXL" (all sizes)
-  * Line: "SELECT SIZE S M L XL XXL" on same line → Extract "S M L XL XXL" (all sizes from same line)
-  * Price: If "₹592" (normal) and "₹1,302" (struck-through) → price="₹592", mrp="₹1,302"
-  * CRITICAL: If you see "₹592" and "2,82,519 ratings" - price="₹592", mrp="₹1,302" (the crossed-out one), NOT "2,82,519" (that's ratings count, not MRP!)
-  * Numbers: "26 Ratings" → exactly "26" (for ratings_count), "4 stars" → exactly "4" or "4.0" (for rating)
-  * MRP: Look for struck-through price NEAR current price, NOT in ratings section
-- Read through ALL lines systematically - don't jump around
-- If field name is on line N, start extracting from line N and keep reading until you see another field/title/section
-- IMPORTANT: If you find a field name but the next line immediately has another field/title, return null (field exists but no content)
-- Read the text below LINE BY LINE exactly as it appears from the screenshot
-- DOUBLE CHECK all numbers before returning - one digit mistake is not acceptable!
-- For ALL fields (including custom fields): Extract ALL content under the field until you see another field/title/section
-
+EXAMPLES:
 {examples_text}
-Now extract from this FULL text (read LINE BY LINE exactly as shown, may have OCR errors):
+
+TEXT TO PROCESS:
 {input_text}
 """.format(
         rules_text=rules_text,
         output_json=output_json_str,
         examples_text=examples_text,
-        input_text="{input_text}"  # This will be replaced by the caller
+        input_text="{input_text}"
     )
     return prompt
 
@@ -798,15 +715,19 @@ def run(url, fields=None, use_dom_first=True, use_ocr_fallback=True):
                 break
     
     # Generate dynamic prompt based on requested fields
+    return process_extracted_text(extracted_text, fields, source, 
+                                 fallback_rating=fallback_rating,
+                                 fallback_ratings_count=fallback_ratings_count,
+                                 fallback_reviews_count=fallback_reviews_count)
+
+
+def process_extracted_text(extracted_text, fields, source, fallback_rating=None, fallback_ratings_count=None, fallback_reviews_count=None):
+    """
+    Shared logic to process extracted text using AI model and format the result.
+    """
     prompt_template = generate_prompt_template(fields)
     
-    # Compose prompt - ALWAYS use FULL text to extract all data
-    # IMPORTANT: Never truncate text - use everything extracted from screenshot
-    # This ensures we capture ALL fields that might appear anywhere in the text
-    has_custom_fields = any(f not in FIELD_DEFINITIONS for f in fields)
-    
     # ALWAYS use FULL extracted text - no truncation ever
-    # This is critical to ensure we don't miss any fields
     text_to_use = extracted_text
     total_lines = len(text_to_use.split('\n'))
     print(f"Using FULL extracted text ({len(text_to_use)} characters) - NO TRUNCATION")
@@ -818,140 +739,96 @@ def run(url, fields=None, use_dom_first=True, use_ocr_fallback=True):
     # Call model
     try:
         # Ensure token is loaded before making API call
-        try:
-            from config import setup_environment
-            setup_environment()
-        except ImportError:
-            pass
+        setup_environment()
         
         # Try local model first, fallback to API if it fails
-        import os
         api_key = os.environ.get("HF_TOKEN") or os.environ.get("MISTRAL_API_KEY")
         
         # Check if local model is available
-        from call_model_hf import get_local_model_path
         local_model_available = get_local_model_path() is not None
         
-        # Detect if we should use Mistral API (if token exists and doesn't start with "hf_")
+        # Detect if we should use Mistral API
         use_mistral = api_key and not api_key.startswith("hf_")
         
-        # call_hf_inference will try local model first, then fallback to API
-        # We'll determine which one was used based on the response structure
         out = call_hf_inference(prompt, use_mistral_api=use_mistral)
         
-        # Determine if response came from local model or API
-        # Local model returns {"generated_text": "..."}, API returns different structure
         is_local = isinstance(out, dict) and "generated_text" in out and local_model_available
         is_mistral = use_mistral and not is_local
         
         model_txt = extract_json_from_response(out, is_mistral=is_mistral, is_local=is_local)
         
-        # Debug: print FULL model response
+        # Debug: print FULL model response (safely handle Unicode)
         print(f"\n{'='*60}")
         print("FULL MODEL RESPONSE:")
         print(f"{'='*60}")
-        print(model_txt)
+        try:
+            print(model_txt)
+        except UnicodeEncodeError:
+            print(model_txt.encode('ascii', 'replace').decode('ascii'))
         print(f"{'='*60}\n")
-        
+
         # Extract JSON from model output
-        # Strategy 1: Extract from markdown code blocks (preferred)
         code_block_match = re.search(r'```(?:json)?\s*(\{[\s\S]*?)\s*```', model_txt, re.S)
         if code_block_match:
             json_match = code_block_match.group(1)
         else:
-            # Strategy 2: Find JSON starting from first { and find matching closing }
             start_idx = model_txt.find('{')
             if start_idx != -1:
-                # Count braces to find matching closing brace
                 brace_count = 0
                 json_end = -1
                 for i in range(start_idx, len(model_txt)):
-                    if model_txt[i] == '{':
-                        brace_count += 1
+                    if model_txt[i] == '{': brace_count += 1
                     elif model_txt[i] == '}':
                         brace_count -= 1
                         if brace_count == 0:
                             json_end = i
                             break
-                
                 if json_end > start_idx:
                     json_match = model_txt[start_idx:json_end+1]
                 else:
-                    # If no matching brace, try to find last } or extract what we can
-                    json_match = re.search(r'\{[\s\S]{50,}', model_txt)  # At least 50 chars
-                    if json_match:
-                        json_match = json_match.group(0)
-                    else:
-                        json_match = None
+                    json_match = re.search(r'\{[\s\S]{50,}', model_txt)
+                    if json_match: json_match = json_match.group(0)
+                    else: json_match = None
             else:
-                # Strategy 3: Regex fallback
                 json_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', model_txt, re.S)
-                if json_match:
-                    json_match = json_match.group(0)
-                else:
-                    json_match = None
+                if json_match: json_match = json_match.group(0)
+                else: json_match = None
         
         result = {}
-        
         if json_match:
             try:
-                # json_match might be a string or a match object
                 json_str = json_match if isinstance(json_match, str) else json_match.group(0)
-                
-                # Try to fix incomplete JSON that might be cut off
-                # If JSON seems incomplete (missing closing brace), try to complete it
                 json_str = json_str.strip()
-                
-                # Count braces
                 open_braces = json_str.count('{')
                 close_braces = json_str.count('}')
-                
-                # If incomplete, try to fix
                 if open_braces > close_braces:
-                    # Missing closing braces - try to complete
-                    missing_braces = open_braces - close_braces
-                    # Try to find where to close - look for last complete key-value pair
-                    # Add closing braces before the last quote or after last comma
                     if json_str.rstrip().endswith(','):
                         json_str = json_str.rstrip().rstrip(',')
-                    json_str += '}' * missing_braces
-                
-                # Remove trailing commas before closing braces/brackets
+                    json_str += '}' * (open_braces - close_braces)
                 json_str = re.sub(r',(\s*[}\]])', r'\1', json_str)
                 
-                # Try parsing
                 j = json.loads(json_str)
-                print(f"✅ Successfully parsed JSON with {len(j)} fields")
-                
+                print(f"[OK] Successfully parsed JSON with {len(j)} fields")
+
                 # Validate and clean each requested field based on its type
-                # IMPORTANT: Process ALL fields (no limit) - ensure every requested field is included
-                valid_fields_set = set(FIELD_DEFINITIONS.keys())
-                print(f"Processing {len(fields)} requested fields (including {len([f for f in fields if f not in valid_fields_set])} custom fields)")
-                
                 for field in fields:
                     if field in j:
                         field_def = FIELD_DEFINITIONS.get(field, {})
-                        field_type = field_def.get("type", "string") if field in valid_fields_set else "string"
+                        field_type = field_def.get("type", "string")
                         value = j[field]
                         
                         if field_type == "decimal":
-                            # Validate decimal (for rating)
                             if isinstance(value, str):
                                 num_match = re.search(r'(\d+\.?\d*)', str(value))
                                 if num_match:
                                     value = float(num_match.group(1))
-                                    if value > 5 and field == "rating":
-                                        value = value / 10 if value > 5 else value
                                     if value > 5:
                                         value = None
                                 else:
                                     value = None
                             elif value is not None:
                                 value = float(value)
-                                if value > 5 and field == "rating":
-                                    value = None
                         elif field_type == "integer":
-                            # Validate integer (for counts)
                             if isinstance(value, str):
                                 count_str = value.replace(",", "").replace(" ", "").replace(".", "")
                                 num_match = re.search(r'(\d+)', count_str)
@@ -959,198 +836,123 @@ def run(url, fields=None, use_dom_first=True, use_ocr_fallback=True):
                             elif value is not None:
                                 value = int(value)
                         elif field == "review":
-                            # Ensure review is a string, not an array
                             if isinstance(value, list):
                                 value = " ".join(str(r) for r in value if r) if value else None
                             else:
                                 value = str(value) if value else None
                         else:
-                            # String fields (including custom fields) - keep as string, but try to preserve format
-                            # IMPORTANT: For long custom fields like "Available offers", keep COMPLETE value
                             if isinstance(value, list):
-                                # Join list items but preserve complete text
                                 value = " ".join(str(r) for r in value if r) if value else None
                             else:
-                                # Keep complete string value - don't truncate
                                 value = str(value) if value else None
-                                # Log if value seems truncated (ends with incomplete sentence)
-                                if value and len(value) > 100 and not value.rstrip().endswith(('.', '!', '?', ';', 'T&C')):
-                                    print(f"Warning: Field '{field}' value might be truncated (ends with: ...{value[-50:]})")
-                        
-                        # Special validation for price and MRP
-                        if field == "price" or field == "mrp":
-                            if value and isinstance(value, str):
-                                # Extract numeric value for validation
-                                # Remove currency symbols and commas
-                                numeric_str = re.sub(r'[₹Rs\s,$]', '', str(value))
-                                # Remove any non-digit characters except decimal point
-                                numeric_str = re.sub(r'[^\d.]', '', numeric_str)
-                                if numeric_str:
-                                    try:
-                                        numeric_value = float(numeric_str)
-                                        # Log the extracted value for debugging
-                                        print(f"Extracted {field}: '{value}' (numeric: {numeric_value})")
-                                        
-                                        # Special validation for MRP - check if it looks like ratings count
-                                        if field == "mrp":
-                                            # If MRP is very large (>10000) or looks suspicious, warn
-                                            if numeric_value > 10000:
-                                                print(f"⚠️  Warning: MRP value {numeric_value} seems unusually high. This might be from ratings section, not actual MRP!")
-                                            # Check if value looks like it could be ratings count (e.g., 2,82,519 -> 282519)
-                                            if numeric_value > 1000 and numeric_value < 1000000:
-                                                # Check extracted text for context clues
-                                                if "ratings" in extracted_text.lower() or "reviews" in extracted_text.lower():
-                                                    # Try to find ratings count in text
-                                                    ratings_match = re.search(r'(\d{1,2}(?:[,\.]\d{2})*(?:[,\.]\d{3})*)\s*rat(?:in|ir)?g?s?\b', extracted_text, re.IGNORECASE)
-                                                    if ratings_match:
-                                                        ratings_num_str = ratings_match.group(1).replace(',', '').replace('.', '').replace(' ', '')
-                                                        if ratings_num_str.isdigit():
-                                                            ratings_num = int(ratings_num_str)
-                                                            # If MRP is close to ratings count, it's probably wrong
-                                                            if abs(numeric_value - ratings_num) < 1000:
-                                                                print(f"⚠️  Warning: MRP value {numeric_value} is very close to ratings count {ratings_num}. This is likely incorrect - MRP should be near the price, not from ratings section!")
-                                    except:
-                                        print(f"Warning: Could not parse {field} value '{value}' as number")
                         
                         result[field] = value
                     else:
                         result[field] = None
                 
-                # Cross-validate price and MRP
-                if "price" in result and "mrp" in result:
-                    price_val = result.get("price")
-                    mrp_val = result.get("mrp")
-                    
-                    if price_val and mrp_val:
-                        # Extract numeric values
-                        price_num = None
-                        mrp_num = None
-                        
-                        if isinstance(price_val, str):
-                            price_str = re.sub(r'[₹Rs\s,$]', '', str(price_val))
-                            price_str = re.sub(r'[^\d.]', '', price_str)
-                            if price_str:
-                                try:
-                                    price_num = float(price_str)
-                                except:
-                                    pass
-                        
-                        if isinstance(mrp_val, str):
-                            mrp_str = re.sub(r'[₹Rs\s,$]', '', str(mrp_val))
-                            mrp_str = re.sub(r'[^\d.]', '', mrp_str)
-                            if mrp_str:
-                                try:
-                                    mrp_num = float(mrp_str)
-                                except:
-                                    pass
-                        
-                        # Validate: MRP should be >= price (usually)
-                        if price_num and mrp_num:
-                            if mrp_num < price_num:
-                                print(f"⚠️  Warning: MRP ({mrp_num}) is less than price ({price_num}). This might be incorrect.")
-                            else:
-                                print(f"✅ Price/MRP validation: Price={price_num}, MRP={mrp_num} (MRP >= Price)")
-                
-                result["source"] = source
-                
-                # Use fallback values if API returned nulls but we found something with regex/DOM
+                # Apply fallback values
                 if "rating" in fields and result.get("rating") is None and fallback_rating:
                     result["rating"] = fallback_rating
                 if "ratings_count" in fields and result.get("ratings_count") is None and fallback_ratings_count:
                     result["ratings_count"] = fallback_ratings_count
                 if "reviews_count" in fields and result.get("reviews_count") is None and fallback_reviews_count:
                     result["reviews_count"] = fallback_reviews_count
-                
-                # Filter to only return requested fields + source
-                # IMPORTANT: Return ALL requested fields - no limit
+                    
+                result["source"] = source
                 filtered_result = {f: result.get(f) for f in fields}
-                filtered_result["source"] = result.get("source", source)
-                
-                # Verify all fields are present
-                missing_fields = [f for f in fields if f not in filtered_result]
-                if missing_fields:
-                    print(f"Warning: Some fields missing from result: {missing_fields}")
-                    for f in missing_fields:
-                        filtered_result[f] = None
-                
-                print(f"Returning {len(filtered_result)} fields in result")
+                filtered_result["source"] = source
                 return filtered_result
-                
-            except json.JSONDecodeError as e:
-                print(f"JSON decode error: {e}")
+            except Exception as e:
+                print(f"Error parsing JSON: {e}")
         
-        # Fallback: use regex-extracted values if available for requested fields
-        fallback_result = {"source": source, "note": "Extracted using regex fallback (API parsing failed)"}
-        if "rating" in fields and fallback_rating:
-            fallback_result["rating"] = fallback_rating
-        if "ratings_count" in fields and fallback_ratings_count:
-            fallback_result["ratings_count"] = fallback_ratings_count
-        if "reviews_count" in fields and fallback_reviews_count:
-            fallback_result["reviews_count"] = fallback_reviews_count
-        
-        # Initialize null values for other requested fields
-        for field in fields:
-            if field not in fallback_result:
-                fallback_result[field] = None
-        
-        # Only return if we have at least one non-null value
-        if any(v is not None for k, v in fallback_result.items() if k not in ["source", "note"]):
-            # Filter to only requested fields
-            filtered = {f: fallback_result.get(f) for f in fields}
-            filtered["source"] = source
-            if "note" in fallback_result:
-                filtered["note"] = fallback_result["note"]
-            return filtered
-        
-        # Final fallback: return nulls for all requested fields
-        # IMPORTANT: Return ALL requested fields even if parsing failed - no limit
+        # Fallback if parsing failed
         final_result = {f: None for f in fields}
+        if "rating" in fields and fallback_rating:
+            final_result["rating"] = fallback_rating
         final_result["source"] = source
         final_result["error"] = "Could not parse model output"
-        print(f"Final fallback: Returning {len(final_result)} fields (all requested fields with null values)")
         return final_result
+        
     except Exception as e:
         print(f"Model call failed: {e}")
-        error_result = {f: None for f in fields}
-        error_result["source"] = source
-        error_result["error"] = str(e)
-        return error_result
+        return {f: None for f in fields} | {"source": source, "error": str(e)}
+
+def run_on_image(image_path, fields=None):
+    """
+    Run extraction on an existing image file.
+    """
+    if fields is None: fields = ["rating", "review"]
+    elif isinstance(fields, str): fields = [fields]
+        
+    FIELD_ALIASES = {
+        "m.r.p.": "mrp",
+        "mrp": "mrp",
+        "maximum retail price": "mrp",
+        "list price": "mrp",
+        "original price": "mrp"
+    }
+    normalized_fields = []
+    for field in fields:
+        field_lower = field.lower().strip()
+        if field_lower in FIELD_ALIASES: normalized_fields.append(FIELD_ALIASES[field_lower])
+        else:
+            valid_fields_lower = {k.lower(): k for k in FIELD_DEFINITIONS.keys()}
+            if field_lower in valid_fields_lower: normalized_fields.append(valid_fields_lower[field_lower])
+            else: normalized_fields.append(field)
+    fields = normalized_fields
+    
+    try:
+        source = "ocr"
+        print(f"Extracting text from image: {image_path}")
+        try:
+            easyocr_text = ocr_easyocr(image_path, lang_list=['en'])
+        except Exception as e:
+            print(f"EasyOCR failed: {e}"); easyocr_text = ""
+            
+        try:
+            tesseract_text = ocr_pytesseract(image_path)
+        except Exception as e:
+            print(f"pytesseract failed: {e}"); tesseract_text = ""
+        
+        if len(easyocr_text) > len(tesseract_text):
+            extracted_text = easyocr_text
+            easyocr_lines = set(easyocr_text.split('\n'))
+            for line in tesseract_text.split('\n'):
+                if line.strip() and line.strip() not in easyocr_lines:
+                    extracted_text += "\n" + line
+        else:
+            extracted_text = tesseract_text
+            tesseract_lines = set(tesseract_text.split('\n'))
+            for line in easyocr_text.split('\n'):
+                if line.strip() and line.strip() not in tesseract_lines:
+                    extracted_text += "\n" + line
+                    
+        if len(extracted_text.strip()) < 10:
+            return {f: None for f in fields} | {"source": "ocr", "error": "Insufficient text"}
+            
+        return process_extracted_text(extracted_text, fields, "ocr")
+    except Exception as e:
+        return {f: None for f in fields} | {"source": "ocr", "error": str(e)}
 
 if __name__ == "__main__":
     import sys
+    import json
     
     if len(sys.argv) > 1:
-        url = sys.argv[1]
-    else:
-        url = "https://www.meesho.com/example-product-url"  # replace with actual URL
-    
-    # Parse fields from command line arguments
-    fields = None
-    if len(sys.argv) > 2:
-        # Check if second argument is --fields or comma-separated
-        if sys.argv[2].startswith("--fields="):
-            fields_str = sys.argv[2].split("=", 1)[1]
-            fields = [f.strip() for f in fields_str.split(",")]
-        elif sys.argv[2] == "--fields" and len(sys.argv) > 3:
-            fields = [f.strip() for f in sys.argv[3].split(",")]
+        target = sys.argv[1]
+        fields = sys.argv[2].split(',') if len(sys.argv) > 2 else None
+        
+        if target.startswith('http'):
+            print(f"Extracting from URL: {target}")
+            res = run(target, fields=fields)
         else:
-            # Treat remaining arguments as field names (space-separated)
-            fields = [f.strip() for f in sys.argv[2:]]
-    
-    if fields:
-        print(f"Extracting fields: {', '.join(fields)}")
-        valid_fields_set = set(FIELD_DEFINITIONS.keys())
-        predefined = [f for f in fields if f in valid_fields_set]
-        custom = [f for f in fields if f not in valid_fields_set]
-        if predefined:
-            print(f"Predefined fields: {', '.join(predefined)}")
-        if custom:
-            print(f"Custom fields: {', '.join(custom)}")
-    
-    print(f"Processing URL: {url}")
-    res = run(url, fields=fields)
-    print("\n" + "="*50)
-    print("RESULT:")
-    print("="*50)
-    print(json.dumps(res, indent=2))
+            print(f"Extracting from image: {target}")
+            res = run_on_image(target, fields=fields)
+        
+        print("\n" + "="*50)
+        print("RESULT:")
+        print("="*50)
+        print(json.dumps(res, indent=2))
+    else:
+        print("Usage: python pipeline.py <url_or_image_path> [fields_comma_separated]")
 

@@ -6,7 +6,7 @@ import numpy as np
 
 # Windows tesseract path configuration (if needed)
 # Uncomment and set path if tesseract is not in PATH
-# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 def preprocess_image_for_ocr(image_path: str, aggressive: bool = False) -> Image.Image:
     """

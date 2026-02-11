@@ -74,13 +74,13 @@ def setup_environment():
         # Determine if it's HF token (starts with hf_) or Mistral token
         if token.startswith('hf_'):
             os.environ['HF_TOKEN'] = token
-            print(f"✓ Loaded HF_TOKEN from config file")
+            print(f"[OK] Loaded HF_TOKEN from config file")
         else:
             os.environ['MISTRAL_API_KEY'] = token
             os.environ['HF_TOKEN'] = token  # Also set HF_TOKEN for compatibility
-            print(f"✓ Loaded MISTRAL_API_KEY from config file")
+            print(f"[OK] Loaded MISTRAL_API_KEY from config file")
         print(f"DEBUG: Token source: {token}")
     else:
-        print("⚠ Warning: No token found in token.md or .env file")
+        print("[WARN] Warning: No token found in token.md or .env file")
         print("   Please set HF_TOKEN or MISTRAL_API_KEY environment variable")
 

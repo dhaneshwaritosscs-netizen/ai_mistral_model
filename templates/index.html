@@ -630,6 +630,7 @@
                 <button type="button" class="mode-btn active" id="singleUrlMode" style="flex: 1; padding: 8px 16px; border: 1px solid #e5e5e6; border-radius: 6px; background: white; cursor: pointer; font-size: 14px;">Single URL</button>
                 <button type="button" class="mode-btn" id="multipleUrlMode" style="flex: 1; padding: 8px 16px; border: 1px solid #e5e5e6; border-radius: 6px; background: white; cursor: pointer; font-size: 14px;">Multiple URLs</button>
                 <button type="button" class="mode-btn" id="csvUploadMode" style="flex: 1; padding: 8px 16px; border: 1px solid #e5e5e6; border-radius: 6px; background: white; cursor: pointer; font-size: 14px;">Upload CSV</button>
+                <button type="button" class="mode-btn" id="imageUploadMode" style="flex: 1; padding: 8px 16px; border: 1px solid #e5e5e6; border-radius: 6px; background: white; cursor: pointer; font-size: 14px;">Upload Image</button>
             </div>
 
             <form id="extractForm">
@@ -692,6 +693,27 @@
                         
                         <button type="button" class="btn" id="submitCsvBtn" style="margin-top: 12px; width: 100%;" disabled>
                             Extract Data from CSV
+                        </button>
+                    </div>
+
+                    <!-- Image Upload -->
+                    <div class="form-group" id="imageUploadGroup" style="display: none;">
+                        <label for="imageFile">Upload Image (Screenshot)</label>
+                        <input 
+                            type="file" 
+                            id="imageFile" 
+                            name="imageFile" 
+                            accept="image/*"
+                            style="padding: 8px; border: 1px solid #d1d5db; border-radius: 8px; width: 100%; font-size: 14px;"
+                        >
+                        <div class="field-hint">Upload an image of the product screenshot (PNG, JPG, etc.)</div>
+                        
+                        <div id="imagePreviewContainer" style="display: none; margin-top: 16px; text-align: center;">
+                            <img id="imagePreview" src="#" alt="Preview" style="max-width: 100%; max-height: 300px; border-radius: 8px; border: 1px solid #e5e5e6;">
+                        </div>
+                        
+                        <button type="button" class="btn" id="submitImageBtn" style="margin-top: 12px; width: 100%;" disabled>
+                            Extract Data from Image
                         </button>
                     </div>
 
@@ -768,12 +790,18 @@
             document.getElementById('singleUrlGroup').style.display = 'none';
             document.getElementById('multipleUrlGroup').style.display = 'none';
             document.getElementById('csvUploadGroup').style.display = 'none';
+            document.getElementById('imageUploadGroup').style.display = 'none';
             document.getElementById('bottomInputArea').style.display = 'none';
             
             // Clear CSV preview when switching modes
             document.getElementById('csvPreview').style.display = 'none';
             document.getElementById('csvFile').value = '';
             document.getElementById('submitCsvBtn').disabled = true;
+
+            // Clear Image preview
+            document.getElementById('imagePreviewContainer').style.display = 'none';
+            document.getElementById('imageFile').value = '';
+            document.getElementById('submitImageBtn').disabled = true;
             
             // Show appropriate input group
             if (mode === 'single') {
@@ -788,6 +816,10 @@
                 document.getElementById('csvUploadMode').classList.add('active');
                 document.getElementById('csvUploadGroup').style.display = 'block';
                 document.getElementById('bottomInputArea').style.display = 'none';
+            } else if (mode === 'image') {
+                document.getElementById('imageUploadMode').classList.add('active');
+                document.getElementById('imageUploadGroup').style.display = 'block';
+                document.getElementById('bottomInputArea').style.display = 'none';
             } else {
                 // Quick mode (default - bottom input only)
                 document.getElementById('singleUrlMode').classList.add('active');
@@ -799,6 +831,7 @@
         document.getElementById('singleUrlMode').addEventListener('click', () => switchMode('single'));
         document.getElementById('multipleUrlMode').addEventListener('click', () => switchMode('multiple'));
         document.getElementById('csvUploadMode').addEventListener('click', () => switchMode('csv'));
+        document.getElementById('imageUploadMode').addEventListener('click', () => switchMode('image'));
 
         // Initialize with quick mode (bottom input only)
         switchMode('quick');
@@ -998,6 +1031,45 @@
                     document.getElementById('submitCsvBtn').disabled = false;
                 }
                 return;
+            } else if (currentMode === 'image') {
+                const fileInput = document.getElementById('imageFile');
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    alert('Please select an image file');
+                    return;
+                }
+                
+                // Handle Image upload
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                if (fields) {
+                    formData.append('fields', fields.join(','));
+                }
+
+                // Show loading
+                document.getElementById('loading').classList.add('active');
+                document.getElementById('resultSection').classList.remove('active');
+                document.getElementById('submitImageBtn').disabled = true;
+
+                try {
+                    const response = await fetch('/api/upload-image', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        displayResult(result.data);
+                    } else {
+                        displayResult({ error: result.error }, true);
+                    }
+                } catch (error) {
+                    displayResult({ error: error.message }, true);
+                } finally {
+                    document.getElementById('loading').classList.remove('active');
+                    document.getElementById('submitImageBtn').disabled = false;
+                }
+                return;
             }
 
             // Show loading
@@ -1090,6 +1162,36 @@
         document.getElementById('submitCsvBtn').addEventListener('click', async (e) => {
             e.preventDefault();
             await submitExtraction();
+        });
+
+        document.getElementById('submitImageBtn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            await submitExtraction();
+        });
+
+        // Image file preview
+        document.getElementById('imageFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const submitBtn = document.getElementById('submitImageBtn');
+            const previewContainer = document.getElementById('imagePreviewContainer');
+            const preview = document.getElementById('imagePreview');
+
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    previewContainer.style.display = 'block';
+                    submitBtn.disabled = false;
+                }
+                reader.readAsDataURL(file);
+            } else {
+                previewContainer.style.display = 'none';
+                submitBtn.disabled = true;
+                if (file) {
+                    alert('Please select a valid image file');
+                    this.value = '';
+                }
+            }
         });
 
         // CSV file change handler to parse and display URLs

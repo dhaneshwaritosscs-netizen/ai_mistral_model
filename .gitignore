@@ -29,3 +29,11 @@ Thumbs.db
 *.safetensors
 consolidated.safetensors
 model-*.safetensors
+
+# Temporary and log files
+*.log
+*.csv
+*.html
+tmp_*.png
+tmp_*.jpg
+debug_*.log
