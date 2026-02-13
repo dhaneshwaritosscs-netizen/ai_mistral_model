@@ -3,6 +3,8 @@ from flask_cors import CORS
 import os
 import csv
 import io
+import requests
+import uuid
 from pipeline import run, run_on_image
 from config import setup_environment
 
@@ -212,29 +214,135 @@ def upload_image():
             os.makedirs(upload_dir)
             
         # Save temporary file
-        from werkzeug.utils import secure_filename
-        filename = secure_filename(file.filename)
-        file_path = os.path.join(upload_dir, filename)
-        file.save(file_path)
+
+        # Save to temporary file
+        temp_filename = f"tmp_{uuid.uuid4().hex}.{file.filename.split('.')[-1]}"
+        file.save(temp_filename)
         
-        # Run extraction on image
         try:
-            result = run_on_image(file_path, fields=fields)
+            # Process the image
+            # Get fields from form data if available
+            fields = request.form.get('fields')
+            if fields:
+                fields = fields.split(',')
             
-            # Clean up file
-            if os.path.exists(file_path):
-                os.remove(file_path)
-                
+            result = run_on_image(temp_filename, fields=fields)
+            
             return jsonify({
                 'success': True,
                 'data': result
             })
-        except Exception as e:
-            # Clean up even on error
-            if os.path.exists(file_path):
-                os.remove(file_path)
-            raise e
             
+        finally:
+            # Clean up temporary file
+            if os.path.exists(temp_filename):
+                os.remove(temp_filename)
+                
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+def convert_google_drive_link(url):
+    """Convert Google Drive view link to direct download link"""
+    if 'drive.google.com' in url and '/file/d/' in url:
+        try:
+            file_id = url.split('/file/d/')[1].split('/')[0]
+            return f'https://drive.google.com/uc?export=download&id={file_id}'
+        except:
+            return url
+    return url
+
+def download_image(url):
+    """Download image from URL to a temporary file"""
+    try:
+        # Handle Google Drive links
+        url = convert_google_drive_link(url)
+        
+        response = requests.get(url, stream=True, timeout=10)
+        response.raise_for_status()
+        
+        # Get extension or default to jpg
+        ext = 'jpg'
+        if 'content-type' in response.headers:
+            ct = response.headers['content-type']
+            if 'image/' in ct:
+                ext = ct.split('/')[-1]
+        
+        temp_filename = f"tmp_dl_{uuid.uuid4().hex}.{ext}"
+        
+        with open(temp_filename, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                f.write(chunk)
+                
+        return temp_filename
+    except Exception as e:
+        print(f"Error downloading image {url}: {e}")
+        return None
+
+@app.route('/api/process-image-urls', methods=['POST'])
+def process_image_urls():
+    """API endpoint to process a CSV of image URLs"""
+    try:
+        setup_environment()
+        
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file uploaded'}), 400
+        
+        file = request.files['file']
+        if not file.filename.endswith('.csv'):
+            return jsonify({'error': 'File must be a CSV'}), 400
+
+        # Read CSV
+        stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
+        csv_reader = csv.reader(stream)
+        
+        image_urls = []
+        for row in csv_reader:
+            if row and len(row) > 0 and row[0].strip():
+                url = row[0].strip()
+                if url.startswith('http'):
+                    image_urls.append(url)
+        
+        if not image_urls:
+            return jsonify({'error': 'No valid URLs found in CSV'}), 400
+            
+        results = []
+        fields = request.form.get('fields')
+        if fields:
+            fields = fields.split(',')
+
+        for url in image_urls:
+            try:
+                temp_file = download_image(url)
+                if temp_file:
+                    try:
+                        result = run_on_image(temp_file, fields=fields)
+                        result['image_url'] = url
+                        results.append(result)
+                    finally:
+                        if os.path.exists(temp_file):
+                            os.remove(temp_file)
+                else:
+                    results.append({
+                        'image_url': url,
+                        'error': 'Failed to download image',
+                        'success': False
+                    })
+            except Exception as e:
+                results.append({
+                    'image_url': url,
+                    'error': str(e),
+                    'success': False
+                })
+        
+        return jsonify({
+            'success': True,
+            'data': results,
+            'count': len(results)
+        })
+
     except Exception as e:
         return jsonify({
             'success': False,
@@ -259,14 +367,15 @@ def get_available_fields():
     })
 
 if __name__ == '__main__':
-    # Token is already loaded by setup_environment() above
-    # Just check and warn if still not set
-    if not os.environ.get('HF_TOKEN') and not os.environ.get('MISTRAL_API_KEY'):
-        print("\n" + "="*60)
-        print("⚠ WARNING: HF_TOKEN or MISTRAL_API_KEY not set!")
-        print("="*60)
-        print("Create a token.md file with your token:")
-        print('  $env:HF_TOKEN = "your_token_here"')
+    print("------------------------------------------------------------")
+    print("Mistral AI Model Server")
+    print("------------------------------------------------------------")
+    
+    # Check if .env file exists or environment variables are set
+    if not os.path.exists('.env') and not os.environ.get('HF_TOKEN'):
+        print("WARNING: No .env file found and HF_TOKEN not set in environment.")
+        print("Please create a .env file with your Hugging Face token:")
+        print("HF_TOKEN=your_token_here")
         print("\nOr create a .env file:")
         print('  HF_TOKEN=your_token_here')
         print("="*60 + "\n")

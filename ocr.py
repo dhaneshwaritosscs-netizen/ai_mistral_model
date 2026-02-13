@@ -72,32 +72,12 @@ def ocr_pytesseract(image_path: str, aggressive: bool = False) -> str:
     img = preprocess_image_for_ocr(image_path, aggressive=aggressive)
     
     # Use config optimized for better number recognition
-    # psm 6 = Assume a single uniform block of text
-    # psm 11 = Sparse text (good for product pages with scattered text)
-    # Try multiple PSM modes and combine results
-    configs = [
-        '--psm 11',  # Sparse text (best for product pages with scattered prices/text)
-        '--psm 6',   # Uniform block
-        '--psm 4'    # Single column (sometimes better for price lists)
-    ]
-    
-    all_text = []
-    for config in configs:
-        try:
-            text = pytesseract.image_to_string(img, config=config)
-            if text.strip():
-                all_text.append(text)
-        except:
-            continue
-    
-    # Combine results, preferring longer/more detailed extractions
-    if all_text:
-        # Use the longest text (usually most complete)
-        combined_text = max(all_text, key=len)
-        return combined_text
-    
-    # Fallback to basic config
-    text = pytesseract.image_to_string(img, config='--psm 6')
+    # psm 6 = Assume a single uniform block of text (best general purpose)
+    try:
+        text = pytesseract.image_to_string(img, config='--psm 6')
+        return text
+    except:
+        return ""
     return text
 
 # optional (usually better on product pages with mixed fonts)

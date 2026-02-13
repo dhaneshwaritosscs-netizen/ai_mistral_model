@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -361,8 +362,13 @@
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         .result-section {
@@ -574,6 +580,7 @@
         }
     </style>
 </head>
+
 <body>
     <!-- Sidebar -->
     <div class="sidebar">
@@ -581,7 +588,7 @@
             <div class="sidebar-logo">P</div>
             <span style="font-weight: 600;">Product Data Extractor</span>
         </div>
-        
+
         <a href="#" class="sidebar-new-chat" onclick="location.reload(); return false;">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
@@ -592,7 +599,8 @@
         <div class="sidebar-nav">
             <div class="sidebar-nav-item">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                 </svg>
                 <span>Search extractions</span>
             </div>
@@ -626,11 +634,23 @@
 
         <div class="chat-area">
             <!-- URL Input Mode Toggle -->
-            <div class="url-mode-toggle" style="margin-bottom: 20px; display: flex; gap: 8px; padding: 8px; background: #f7f7f8; border-radius: 8px;">
-                <button type="button" class="mode-btn active" id="singleUrlMode" style="flex: 1; padding: 8px 16px; border: 1px solid #e5e5e6; border-radius: 6px; background: white; cursor: pointer; font-size: 14px;">Single URL</button>
-                <button type="button" class="mode-btn" id="multipleUrlMode" style="flex: 1; padding: 8px 16px; border: 1px solid #e5e5e6; border-radius: 6px; background: white; cursor: pointer; font-size: 14px;">Multiple URLs</button>
-                <button type="button" class="mode-btn" id="csvUploadMode" style="flex: 1; padding: 8px 16px; border: 1px solid #e5e5e6; border-radius: 6px; background: white; cursor: pointer; font-size: 14px;">Upload CSV</button>
-                <button type="button" class="mode-btn" id="imageUploadMode" style="flex: 1; padding: 8px 16px; border: 1px solid #e5e5e6; border-radius: 6px; background: white; cursor: pointer; font-size: 14px;">Upload Image</button>
+            <div class="url-mode-toggle"
+                style="margin-bottom: 20px; display: flex; gap: 8px; padding: 8px; background: #f7f7f8; border-radius: 8px;">
+                <button type="button" class="mode-btn active" id="singleUrlMode"
+                    style="flex: 1; padding: 8px 16px; border: 1px solid #e5e5e6; border-radius: 6px; background: white; cursor: pointer; font-size: 14px;">Single
+                    URL</button>
+                <button type="button" class="mode-btn" id="multipleUrlMode"
+                    style="flex: 1; padding: 8px 16px; border: 1px solid #e5e5e6; border-radius: 6px; background: white; cursor: pointer; font-size: 14px;">Multiple
+                    URLs</button>
+                <button type="button" class="mode-btn" id="csvUploadMode"
+                    style="flex: 1; padding: 8px 16px; border: 1px solid #e5e5e6; border-radius: 6px; background: white; cursor: pointer; font-size: 14px;">Upload
+                    CSV</button>
+                <button type="button" class="mode-btn" id="imageUploadMode"
+                    style="flex: 1; padding: 8px 16px; border: 1px solid #e5e5e6; border-radius: 6px; background: white; cursor: pointer; font-size: 14px;">Upload
+                    Image</button>
+                <button type="button" class="mode-btn" id="csvImageUrlMode"
+                    style="flex: 1; padding: 8px 16px; border: 1px solid #e5e5e6; border-radius: 6px; background: white; cursor: pointer; font-size: 14px;">Image
+                    URLs CSV</button>
             </div>
 
             <form id="extractForm">
@@ -638,24 +658,17 @@
                     <!-- Single URL Input (hidden by default for batch mode) -->
                     <div class="form-group" id="singleUrlGroup" style="display: none;">
                         <label for="singleUrl">Product URL</label>
-                        <input 
-                            type="url" 
-                            id="singleUrl" 
-                            name="singleUrl" 
-                            placeholder="https://www.meesho.com/product-url"
-                        >
+                        <input type="url" id="singleUrl" name="singleUrl"
+                            placeholder="https://www.meesho.com/product-url">
                         <div class="field-hint">Enter a single product URL</div>
                     </div>
 
                     <!-- Multiple URLs Input -->
                     <div class="form-group" id="multipleUrlGroup" style="display: none;">
                         <label for="multipleUrls">Product URLs (one per line)</label>
-                        <textarea 
-                            id="multipleUrls" 
-                            name="multipleUrls" 
+                        <textarea id="multipleUrls" name="multipleUrls"
                             placeholder="https://www.meesho.com/product-url-1&#10;https://www.meesho.com/product-url-2&#10;https://www.meesho.com/product-url-3"
-                            style="min-height: 150px; font-family: monospace; font-size: 13px;"
-                        ></textarea>
+                            style="min-height: 150px; font-family: monospace; font-size: 13px;"></textarea>
                         <div class="field-hint">Enter multiple URLs, one per line</div>
                         <button type="button" class="btn" id="submitMultipleBtn" style="margin-top: 12px; width: 100%;">
                             Extract Data from All URLs
@@ -664,18 +677,14 @@
 
                     <!-- CSV Upload -->
                     <div class="form-group" id="csvUploadGroup" style="display: none;">
-                        <label for="csvFile">Upload CSV File</label>
-                        <input 
-                            type="file" 
-                            id="csvFile" 
-                            name="csvFile" 
-                            accept=".csv"
-                            style="padding: 8px; border: 1px solid #d1d5db; border-radius: 8px; width: 100%; font-size: 14px;"
-                        >
-                        <div class="field-hint">Upload a CSV file with URLs in the first column</div>
-                        
+                        <label for="csvFile">Upload CSV File (Product Page URLs)</label>
+                        <input type="file" id="csvFile" name="csvFile" accept=".csv"
+                            style="padding: 8px; border: 1px solid #d1d5db; border-radius: 8px; width: 100%; font-size: 14px;">
+                        <div class="field-hint">Upload a CSV file with Product Page URLs in the first column</div>
+
                         <!-- CSV Preview Section -->
-                        <div id="csvPreview" style="display: none; margin-top: 16px; padding: 16px; background: #f7f7f8; border-radius: 8px; border: 1px solid #e5e5e6;">
+                        <div id="csvPreview"
+                            style="display: none; margin-top: 16px; padding: 16px; background: #f7f7f8; border-radius: 8px; border: 1px solid #e5e5e6;">
                             <div style="margin-bottom: 12px;">
                                 <strong style="color: #353740; font-size: 14px;">CSV File Information:</strong>
                             </div>
@@ -686,33 +695,64 @@
                             <div style="margin-bottom: 8px;">
                                 <strong style="color: #353740; font-size: 13px;">URLs List:</strong>
                             </div>
-                            <div id="urlList" style="max-height: 300px; overflow-y: auto; padding: 12px; background: white; border-radius: 6px; border: 1px solid #e5e5e6;">
+                            <div id="urlList"
+                                style="max-height: 300px; overflow-y: auto; padding: 12px; background: white; border-radius: 6px; border: 1px solid #e5e5e6;">
                                 <!-- URLs will be listed here -->
                             </div>
                         </div>
-                        
-                        <button type="button" class="btn" id="submitCsvBtn" style="margin-top: 12px; width: 100%;" disabled>
+
+                        <button type="button" class="btn" id="submitCsvBtn" style="margin-top: 12px; width: 100%;"
+                            disabled>
                             Extract Data from CSV
+                        </button>
+                    </div>
+
+                    <!-- CSV Image URL Upload -->
+                    <div class="form-group" id="csvImageUrlGroup" style="display: none;">
+                        <label for="csvImageUrlFile">Upload CSV File (Direct Image URLs)</label>
+                        <input type="file" id="csvImageUrlFile" name="csvImageUrlFile" accept=".csv"
+                            style="padding: 8px; border: 1px solid #d1d5db; border-radius: 8px; width: 100%; font-size: 14px;">
+                        <div class="field-hint">Upload a CSV file with Direct Image URLs in the first column</div>
+
+                        <!-- CSV Preview Section -->
+                        <div id="csvImageUrlPreview"
+                            style="display: none; margin-top: 16px; padding: 16px; background: #f7f7f8; border-radius: 8px; border: 1px solid #e5e5e6;">
+                            <div style="margin-bottom: 12px;">
+                                <strong style="color: #353740; font-size: 14px;">CSV File Information:</strong>
+                            </div>
+                            <div style="margin-bottom: 12px; padding: 8px; background: white; border-radius: 6px;">
+                                <span style="color: #10a37f; font-weight: 600;">Total Image URLs to process: </span>
+                                <span id="imageUrlCount" style="font-weight: 600; color: #353740;">0</span>
+                            </div>
+                            <div style="margin-bottom: 8px;">
+                                <strong style="color: #353740; font-size: 13px;">Image URLs List:</strong>
+                            </div>
+                            <div id="imageUrlList"
+                                style="max-height: 300px; overflow-y: auto; padding: 12px; background: white; border-radius: 6px; border: 1px solid #e5e5e6;">
+                                <!-- URLs will be listed here -->
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn" id="submitCsvImageUrlBtn"
+                            style="margin-top: 12px; width: 100%;" disabled>
+                            Process All Images
                         </button>
                     </div>
 
                     <!-- Image Upload -->
                     <div class="form-group" id="imageUploadGroup" style="display: none;">
                         <label for="imageFile">Upload Image (Screenshot)</label>
-                        <input 
-                            type="file" 
-                            id="imageFile" 
-                            name="imageFile" 
-                            accept="image/*"
-                            style="padding: 8px; border: 1px solid #d1d5db; border-radius: 8px; width: 100%; font-size: 14px;"
-                        >
+                        <input type="file" id="imageFile" name="imageFile" accept="image/*"
+                            style="padding: 8px; border: 1px solid #d1d5db; border-radius: 8px; width: 100%; font-size: 14px;">
                         <div class="field-hint">Upload an image of the product screenshot (PNG, JPG, etc.)</div>
-                        
+
                         <div id="imagePreviewContainer" style="display: none; margin-top: 16px; text-align: center;">
-                            <img id="imagePreview" src="#" alt="Preview" style="max-width: 100%; max-height: 300px; border-radius: 8px; border: 1px solid #e5e5e6;">
+                            <img id="imagePreview" src="#" alt="Preview"
+                                style="max-width: 100%; max-height: 300px; border-radius: 8px; border: 1px solid #e5e5e6;">
                         </div>
-                        
-                        <button type="button" class="btn" id="submitImageBtn" style="margin-top: 12px; width: 100%;" disabled>
+
+                        <button type="button" class="btn" id="submitImageBtn" style="margin-top: 12px; width: 100%;"
+                            disabled>
                             Extract Data from Image
                         </button>
                     </div>
@@ -723,12 +763,9 @@
                         <div class="fields-grid loading" id="fieldsGrid">
                             Loading fields...
                         </div>
-                        <textarea 
-                            id="customFields" 
-                            name="customFields" 
+                        <textarea id="customFields" name="customFields"
                             placeholder="Enter custom fields (comma-separated): Available, offers, etc."
-                            style="margin-top: 8px;"
-                        ></textarea>
+                            style="margin-top: 8px;"></textarea>
                     </div>
                 </div>
             </form>
@@ -755,15 +792,12 @@
                     <svg class="input-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                     </svg>
-                    <input 
-                        type="url" 
-                        id="quickSubmit" 
-                        class="input-field"
-                        placeholder="Enter product URL or press Enter to extract data"
-                    >
+                    <input type="url" id="quickSubmit" class="input-field"
+                        placeholder="Enter product URL or press Enter to extract data">
                     <button type="button" class="submit-btn" id="submitBtn">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
                         </svg>
                     </button>
                 </div>
@@ -782,27 +816,33 @@
         // Mode switching
         function switchMode(mode) {
             currentMode = mode;
-            
+
             // Update button states
             document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
-            
+
             // Hide all input groups
             document.getElementById('singleUrlGroup').style.display = 'none';
             document.getElementById('multipleUrlGroup').style.display = 'none';
             document.getElementById('csvUploadGroup').style.display = 'none';
             document.getElementById('imageUploadGroup').style.display = 'none';
+            document.getElementById('csvImageUrlGroup').style.display = 'none';
             document.getElementById('bottomInputArea').style.display = 'none';
-            
+
             // Clear CSV preview when switching modes
             document.getElementById('csvPreview').style.display = 'none';
             document.getElementById('csvFile').value = '';
             document.getElementById('submitCsvBtn').disabled = true;
 
+            // Clear CSV Image URL preview
+            document.getElementById('csvImageUrlPreview').style.display = 'none';
+            document.getElementById('csvImageUrlFile').value = '';
+            document.getElementById('submitCsvImageUrlBtn').disabled = true;
+
             // Clear Image preview
             document.getElementById('imagePreviewContainer').style.display = 'none';
             document.getElementById('imageFile').value = '';
             document.getElementById('submitImageBtn').disabled = true;
-            
+
             // Show appropriate input group
             if (mode === 'single') {
                 document.getElementById('singleUrlMode').classList.add('active');
@@ -820,6 +860,10 @@
                 document.getElementById('imageUploadMode').classList.add('active');
                 document.getElementById('imageUploadGroup').style.display = 'block';
                 document.getElementById('bottomInputArea').style.display = 'none';
+            } else if (mode === 'csvImageUrl') {
+                document.getElementById('csvImageUrlMode').classList.add('active');
+                document.getElementById('csvImageUrlGroup').style.display = 'block';
+                document.getElementById('bottomInputArea').style.display = 'none';
             } else {
                 // Quick mode (default - bottom input only)
                 document.getElementById('singleUrlMode').classList.add('active');
@@ -832,6 +876,7 @@
         document.getElementById('multipleUrlMode').addEventListener('click', () => switchMode('multiple'));
         document.getElementById('csvUploadMode').addEventListener('click', () => switchMode('csv'));
         document.getElementById('imageUploadMode').addEventListener('click', () => switchMode('image'));
+        document.getElementById('csvImageUrlMode').addEventListener('click', () => switchMode('csvImageUrl'));
 
         // Initialize with quick mode (bottom input only)
         switchMode('quick');
@@ -875,91 +920,15 @@
             `).join('');
         }
 
-        function displayResult(data, isError = false) {
-            const resultSection = document.getElementById('resultSection');
-            const resultCard = document.getElementById('resultCard');
-            const resultData = document.getElementById('resultData');
-            const sourceBadge = document.getElementById('sourceBadge');
-
-            resultSection.classList.add('active');
-            if (isError) {
-                resultCard.classList.add('error');
-            } else {
-                resultCard.classList.remove('error');
-            }
-
-            if (isError) {
-                resultData.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
-                sourceBadge.textContent = 'ERROR';
-            } else {
-                // Check if it's multiple results (array)
-                if (Array.isArray(data)) {
-                    let html = `<div style="margin-bottom: 16px; font-weight: 600; color: #353740;">Total: ${data.length} URLs processed</div>`;
-                    data.forEach((result, index) => {
-                        html += `<div style="margin-bottom: 24px; padding: 16px; background: white; border-radius: 8px; border-left: 3px solid #10a37f;">`;
-                        html += `<div style="font-weight: 600; color: #10a37f; margin-bottom: 12px; font-size: 13px;">URL ${index + 1}: ${result.url || 'N/A'}</div>`;
-                        
-                        if (result.error) {
-                            html += `<div style="color: #ef4444; padding: 8px; background: #fee; border-radius: 4px;">Error: ${result.error}</div>`;
-                        } else {
-                            for (const [key, value] of Object.entries(result)) {
-                                if (key === 'source' || key === 'url') continue;
-                                html += `
-                                    <div class="field-item">
-                                        <div class="field-name">${key}</div>
-                                        <div class="field-value ${value === null ? 'field-null' : ''}">
-                                            ${value === null ? '(not found)' : 
-                                              typeof value === 'object' ? JSON.stringify(value, null, 2) : 
-                                              String(value)}
-                                        </div>
-                                    </div>
-                                `;
-                            }
-                        }
-                        html += `</div>`;
-                    });
-                    resultData.innerHTML = html;
-                    sourceBadge.textContent = 'BATCH';
-                } else {
-                    // Single result
-                const source = data.source || 'unknown';
-                sourceBadge.textContent = source.toUpperCase();
-
-                let html = '';
-                for (const [key, value] of Object.entries(data)) {
-                    if (key === 'source') continue;
-                    html += `
-                        <div class="field-item">
-                            <div class="field-name">${key}</div>
-                            <div class="field-value ${value === null ? 'field-null' : ''}">
-                                ${value === null ? '(not found)' : 
-                                  typeof value === 'object' ? JSON.stringify(value, null, 2) : 
-                                  String(value)}
-                            </div>
-                        </div>
-                    `;
-                }
-                resultData.innerHTML = html || '<p>No data extracted</p>';
-                }
-            }
-        }
-
         async function submitExtraction() {
-            const customFields = document.getElementById('customFields').value;
-            const checkboxes = document.querySelectorAll('input[name="fields"]:checked');
-            const selectedFields = Array.from(checkboxes).map(cb => cb.value);
-            
-            // Combine selected fields and custom fields
-            let fields = [...selectedFields];
-            if (customFields.trim()) {
-                const custom = customFields.split(',').map(f => f.trim()).filter(f => f);
-                fields = [...fields, ...custom];
-            }
-            
-            // If no fields selected, use empty array (will default to rating, review)
-            if (fields.length === 0) {
-                fields = null;
-            }
+            // Get selected fields
+            const selectedFields = Array.from(document.querySelectorAll('.field-checkbox input:checked'))
+                .map(cb => cb.value);
+
+            const customFieldsText = document.getElementById('customFields').value.trim();
+            const customFields = customFieldsText ? customFieldsText.split(',').map(f => f.trim()).filter(f => f) : [];
+
+            const fields = [...selectedFields, ...customFields];
 
             let url = '';
             let urls = [];
@@ -967,10 +936,10 @@
 
             // Handle different modes
             if (currentMode === 'quick' || currentMode === 'single') {
-                url = currentMode === 'quick' 
+                url = currentMode === 'quick'
                     ? document.getElementById('quickSubmit').value.trim()
                     : document.getElementById('singleUrl').value.trim();
-                
+
                 if (!url) {
                     alert('Please enter a product URL');
                     return;
@@ -984,7 +953,7 @@
                 urls = multipleUrlsText.split('\n')
                     .map(u => u.trim())
                     .filter(u => u && (u.startsWith('http://') || u.startsWith('https://')));
-                
+
                 if (urls.length === 0) {
                     alert('Please enter valid URLs (one per line)');
                     return;
@@ -996,11 +965,11 @@
                     alert('Please select a CSV file');
                     return;
                 }
-                
+
                 // Handle CSV upload
                 const formData = new FormData();
                 formData.append('file', fileInput.files[0]);
-                if (fields) {
+                if (fields.length > 0) {
                     formData.append('fields', fields.join(','));
                 }
 
@@ -1016,7 +985,7 @@
                     });
 
                     const result = await response.json();
-                    
+
                     if (result.success) {
                         displayResult(result.data);
                         // Clear file input
@@ -1037,11 +1006,11 @@
                     alert('Please select an image file');
                     return;
                 }
-                
+
                 // Handle Image upload
                 const formData = new FormData();
                 formData.append('file', fileInput.files[0]);
-                if (fields) {
+                if (fields.length > 0) {
                     formData.append('fields', fields.join(','));
                 }
 
@@ -1057,7 +1026,7 @@
                     });
 
                     const result = await response.json();
-                    
+
                     if (result.success) {
                         displayResult(result.data);
                     } else {
@@ -1070,12 +1039,53 @@
                     document.getElementById('submitImageBtn').disabled = false;
                 }
                 return;
+            } else if (currentMode === 'csvImageUrl') {
+                const fileInput = document.getElementById('csvImageUrlFile');
+                if (!fileInput.files || fileInput.files.length === 0) {
+                    alert('Please select a CSV file');
+                    return;
+                }
+
+                // Handle CSV Image URL upload
+                const formData = new FormData();
+                formData.append('file', fileInput.files[0]);
+                if (fields.length > 0) {
+                    formData.append('fields', fields.join(','));
+                }
+
+                // Show loading
+                document.getElementById('loading').classList.add('active');
+                document.getElementById('resultSection').classList.remove('active');
+                document.getElementById('submitCsvImageUrlBtn').disabled = true;
+
+                try {
+                    const response = await fetch('/api/process-image-urls', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+
+                    if (result.success) {
+                        displayResult(result.data);
+                        // Clear file input
+                        fileInput.value = '';
+                    } else {
+                        displayResult({ error: result.error }, true);
+                    }
+                } catch (error) {
+                    displayResult({ error: error.message }, true);
+                } finally {
+                    document.getElementById('loading').classList.remove('active');
+                    document.getElementById('submitCsvImageUrlBtn').disabled = false;
+                }
+                return;
             }
 
             // Show loading
             document.getElementById('loading').classList.add('active');
             document.getElementById('resultSection').classList.remove('active');
-            
+
             // Disable appropriate buttons
             if (currentMode === 'multiple') {
                 document.getElementById('submitMultipleBtn').disabled = true;
@@ -1087,7 +1097,7 @@
             }
 
             try {
-                const requestBody = isMultiple 
+                const requestBody = isMultiple
                     ? { urls, fields }
                     : { url, fields };
 
@@ -1100,7 +1110,7 @@
                 });
 
                 const result = await response.json();
-                
+
                 if (result.success) {
                     displayResult(result.data);
                     // Clear input after successful extraction
@@ -1118,7 +1128,7 @@
                 displayResult({ error: error.message }, true);
             } finally {
                 document.getElementById('loading').classList.remove('active');
-                
+
                 // Re-enable appropriate buttons
                 if (currentMode === 'multiple') {
                     document.getElementById('submitMultipleBtn').disabled = false;
@@ -1164,13 +1174,18 @@
             await submitExtraction();
         });
 
+        document.getElementById('submitCsvImageUrlBtn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            await submitExtraction();
+        });
+
         document.getElementById('submitImageBtn').addEventListener('click', async (e) => {
             e.preventDefault();
             await submitExtraction();
         });
 
         // Image file preview
-        document.getElementById('imageFile').addEventListener('change', function(e) {
+        document.getElementById('imageFile').addEventListener('change', function (e) {
             const file = e.target.files[0];
             const submitBtn = document.getElementById('submitImageBtn');
             const previewContainer = document.getElementById('imagePreviewContainer');
@@ -1178,7 +1193,7 @@
 
             if (file && file.type.startsWith('image/')) {
                 const reader = new FileReader();
-                reader.onload = function(e) {
+                reader.onload = function (e) {
                     preview.src = e.target.result;
                     previewContainer.style.display = 'block';
                     submitBtn.disabled = false;
@@ -1196,94 +1211,216 @@
 
         // CSV file change handler to parse and display URLs
         document.getElementById('csvFile').addEventListener('change', async (e) => {
+            handleCsvPreview(e, 'urlCount', 'urlList', 'csvPreview', 'submitCsvBtn');
+        });
+
+        // CSV Image URL file change handler
+        document.getElementById('csvImageUrlFile').addEventListener('change', async (e) => {
+            handleCsvPreview(e, 'imageUrlCount', 'imageUrlList', 'csvImageUrlPreview', 'submitCsvImageUrlBtn');
+        });
+
+        async function handleCsvPreview(e, countId, listId, previewId, btnId) {
             const file = e.target.files[0];
+            const btn = document.getElementById(btnId);
+            const previewDiv = document.getElementById(previewId);
+
             if (!file) {
-                document.getElementById('csvPreview').style.display = 'none';
-                document.getElementById('submitCsvBtn').disabled = true;
+                previewDiv.style.display = 'none';
+                btn.disabled = true;
                 return;
             }
 
             if (!file.name.endsWith('.csv')) {
                 alert('Please select a CSV file');
                 e.target.value = '';
-                document.getElementById('csvPreview').style.display = 'none';
-                document.getElementById('submitCsvBtn').disabled = true;
+                previewDiv.style.display = 'none';
+                btn.disabled = true;
                 return;
             }
 
             try {
                 const text = await file.text();
                 const lines = text.split(/\r?\n/);
-                const urls = [];
-                
-                // Parse CSV - assuming first column contains URLs
+                const items = [];
+
+                // Parse CSV - assuming first column contains data
                 for (let line of lines) {
                     line = line.trim();
                     if (!line) continue;
-                    
-                    // Better CSV parsing that handles quoted fields
-                    let firstColumn = '';
-                    let inQuotes = false;
-                    let currentField = '';
-                    
-                    for (let i = 0; i < line.length; i++) {
-                        const char = line[i];
-                        if (char === '"') {
-                            inQuotes = !inQuotes;
-                        } else if (char === ',' && !inQuotes) {
-                            firstColumn = currentField.trim();
-                            break;
-                        } else {
-                            currentField += char;
-                        }
-                    }
-                    
-                    // If no comma found, use the whole line
-                    if (!firstColumn) {
-                        firstColumn = currentField.trim();
-                    }
-                    
+
+                    // Simple CSV parsing for first column
+                    let firstColumn = line.split(',')[0].trim();
                     // Remove surrounding quotes if present
                     firstColumn = firstColumn.replace(/^["']|["']$/g, '');
-                    
+
                     if (firstColumn && (firstColumn.startsWith('http://') || firstColumn.startsWith('https://'))) {
-                        urls.push(firstColumn);
+                        items.push(firstColumn);
                     }
                 }
 
-                if (urls.length === 0) {
+                if (items.length === 0) {
                     alert('No valid URLs found in CSV file. Please ensure URLs are in the first column.');
                     e.target.value = '';
-                    document.getElementById('csvPreview').style.display = 'none';
-                    document.getElementById('submitCsvBtn').disabled = true;
+                    previewDiv.style.display = 'none';
+                    btn.disabled = true;
                     return;
                 }
 
-                // Display URL count and list
-                document.getElementById('urlCount').textContent = urls.length;
-                
-                const urlListDiv = document.getElementById('urlList');
-                urlListDiv.innerHTML = urls.map((url, index) => 
+                // Display count and list
+                document.getElementById(countId).textContent = items.length;
+
+                const listDiv = document.getElementById(listId);
+                listDiv.innerHTML = items.map((item, index) =>
                     `<div style="padding: 8px; margin-bottom: 4px; background: #f7f7f8; border-radius: 4px; border-left: 3px solid #10a37f;">
                         <span style="color: #8e8ea0; font-size: 12px; margin-right: 8px;">${index + 1}.</span>
-                        <span style="color: #353740; font-size: 13px; word-break: break-all;">${url}</span>
+                        <span style="color: #353740; font-size: 13px; word-break: break-all;">${item}</span>
                     </div>`
                 ).join('');
 
-                document.getElementById('csvPreview').style.display = 'block';
-                document.getElementById('submitCsvBtn').disabled = false;
+                previewDiv.style.display = 'block';
+                btn.disabled = false;
             } catch (error) {
                 console.error('Error parsing CSV:', error);
                 alert('Error reading CSV file: ' + error.message);
                 e.target.value = '';
-                document.getElementById('csvPreview').style.display = 'none';
-                document.getElementById('submitCsvBtn').disabled = true;
+                previewDiv.style.display = 'none';
+                btn.disabled = true;
             }
-        });
+        }
+
+        // Add CSV Download Functionality
+        function downloadCSV(data) {
+            if (!data || data.length === 0) return;
+
+            // Get all unique headers from all objects
+            const headers = new Set();
+            data.forEach(item => {
+                Object.keys(item).forEach(key => headers.add(key));
+            });
+            const headerArray = Array.from(headers);
+
+            // Create CSV content
+            const csvRows = [];
+
+            // Header row
+            csvRows.push(headerArray.join(','));
+
+            // Data rows
+            data.forEach(item => {
+                const row = headerArray.map(header => {
+                    let val = item[header] || '';
+                    // Escape quotes and wrap in quotes if contains comma
+                    val = String(val).replace(/"/g, '""');
+                    if (val.search(/("|;|,|\n)/g) >= 0) {
+                        val = `"${val}"`;
+                    }
+                    return val;
+                });
+                csvRows.push(row.join(','));
+            });
+
+            const csvContent = csvRows.join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.setAttribute('href', url);
+            link.setAttribute('download', 'extraction_results.csv');
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Modify displayResult to include download button
+        function displayResult(data, isError = false) {
+            const resultCard = document.getElementById('resultCard');
+            const resultData = document.getElementById('resultData');
+            const resultSection = document.getElementById('resultSection');
+            const sourceBadge = document.getElementById('sourceBadge');
+
+            resultData.innerHTML = '';
+
+            if (isError) {
+                sourceBadge.style.display = 'none';
+                resultCard.className = 'result-card error';
+                resultData.innerHTML = `
+                    <div class="result-item">
+                        <span class="label">Error:</span>
+                        <span class="value">${data.error}</span>
+                    </div>
+                `;
+            } else {
+                resultCard.className = 'result-card';
+
+                if (Array.isArray(data)) {
+                    // Start of modifications for download button
+                    const headerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <span>Processed ${data.length} items</span>
+                            <button onclick='window.downloadCSV(${JSON.stringify(data).replace(/'/g, "&#39;")})'
+                                    style="padding: 4px 12px; background: #10a37f; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                                Download CSV
+                            </button>
+                        </div>
+                    `;
+                    // End of modifications
+
+                    sourceBadge.textContent = 'Batch Result';
+                    sourceBadge.style.display = 'inline-block';
+
+                    let html = headerHTML; // Add header with download button
+
+                    data.forEach((item, index) => {
+                        html += `<div style="margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #e5e5e6;">
+                            <div style="font-weight: 600; font-size: 14px; margin-bottom: 8px; color: #10a37f;">Item #${index + 1}</div>`;
+
+                        // Add URL if present
+                        if (item.url) html += `<div class="result-item"><span class="label">URL:</span><span class="value"><a href="${item.url}" target="_blank">${item.url}</a></span></div>`;
+                        if (item.image_url) html += `<div class="result-item"><span class="label">Image URL:</span><span class="value"><a href="${item.image_url}" target="_blank">${item.image_url}</a></span></div>`;
+
+                        Object.entries(item).forEach(([key, value]) => {
+                            if (key !== 'url' && key !== 'image_url' && key !== 'success' && key !== 'source') {
+                                html += `
+                                    <div class="result-item">
+                                        <span class="label">${key.replace(/_/g, ' ')}:</span>
+                                        <span class="value">${value}</span>
+                                    </div>
+                                `;
+                            }
+                        });
+                        html += '</div>';
+                    });
+                    resultData.innerHTML = html;
+                } else {
+                    // Single result
+                    sourceBadge.textContent = data.source ? data.source.toUpperCase() : 'AI';
+                    sourceBadge.style.display = 'inline-block';
+
+                    Object.entries(data).forEach(([key, value]) => {
+                        if (key !== 'source') {
+                            resultData.innerHTML += `
+                                <div class="result-item">
+                                    <span class="label">${key.replace(/_/g, ' ')}:</span>
+                                    <span class="value">${value}</span>
+                                </div>
+                            `;
+                        }
+                    });
+                }
+            }
+
+            resultSection.classList.add('active');
+
+            // Scroll to result
+            resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        // Expose downloadCSV to window scope for the button click
+        window.downloadCSV = downloadCSV;
 
         // Load fields on page load
         loadFields();
     </script>
 </body>
-</html>
 
+</html>

@@ -97,50 +97,49 @@ FIELD_DEFINITIONS = {
     #     "example": "₹299"
     # },
     "price": {
-  "description": "Extract the current (non-crossed-out) selling price of the product.",
-  "rules": [
-    "1. Look for currency values with symbols like ₹, Rs, Rs., $, etc.",
-    "2. If a price is struck-through (crossed out), IGNORE it — it is MRP or old price.",
-    "3. The non-crossed-out price shown near 'Special price', 'Offer price', or discount text is the CURRENT price.",
-    "4. CRITICAL: Read digits EXACTLY as shown - if you see '₹592', extract EXACTLY '₹592' (3 digits: 5-9-2), NOT '₹202' or any other value.",
-    "5. CRITICAL: Count digits carefully - '₹592' has 3 digits (5, 9, 2). If you extract '₹202', that is WRONG (digits are 2, 0, 2 which don't match 5, 9, 2).",
-    "6. OCR may split numbers: '592' might appear as '5 92', '59 2', or '5 9 2' - ALL should be read as EXACTLY '592'.",
-    "7. OCR may MISREAD digits: '592' might be incorrectly read as '202' (5→2, 9→0) or '442' (5→4, 9→4) - VERIFY each digit carefully!",
-    "8. Read each digit ONE BY ONE: If text shows '₹592', count: first digit is '5', second is '9', third is '2' = exactly '₹592'.",
-    "9. Extract the value exactly as displayed, including the currency symbol (e.g., '₹592').",
-    "10. If multiple prices exist, pick the one that is highlighted, largest, or next to 'Special price'.",
-    "11. Do not change digits or symbols — keep commas and currency symbol as shown.",
-    "12. VERIFICATION: Before returning, verify digits match what you see - '₹592' = digits 5-9-2, NOT 2-0-2 or 4-4-2.",
-    "13. Return only one value — the current price."
-  ],
-  "type": "string",
-  "example": "₹592"
-},
-"mrp": {
-  "description": "Extract the MRP or original price that is crossed out (struck-through).",
-  "rules": [
-    "1. CRITICAL: MRP is the STRUCK-THROUGH (crossed-out) price that appears NEAR the current price - NOT from ratings/reviews section.",
-    "2. CRITICAL: DO NOT extract numbers from 'ratings' or 'reviews' text - those are NOT MRP. Example: '2,82,519 ratings' is NOT MRP, ignore it.",
-    "3. CRITICAL: MRP appears in the PRICING SECTION, usually right above or next to the current price (₹592), NOT in the ratings area.",
-    "4. Look for prices with currency symbols like ₹, Rs, Rs., $, etc. that appear NEAR the current price.",
-    "5. Identify the price that is struck-through (crossed out) - this is the MRP. It appears near 'Special price' or discount text.",
-    "6. CRITICAL: Read digits EXACTLY as shown - if you see '₹1,302' or '₹1302' NEAR the current price ₹592, extract EXACTLY '₹1,302' (4 digits: 1-3-0-2), NOT '2,825' or any other number.",
-    "7. CRITICAL: If you see '2,82,519' or '2,825' near 'ratings' or 'reviews' text, that is NOT MRP - ignore it completely!",
-    "8. CRITICAL: MRP should be close to the price value - if current price is ₹592, MRP should be nearby (like ₹1,302), NOT far away in ratings section.",
-    "9. CRITICAL: Count digits carefully - '₹1,302' has 4 digits (1, 3, 0, 2). If you extract '2,825' (from ratings), that is WRONG - that's not MRP!",
-    "10. OCR may split numbers: '1302' might appear as '1 302', '13 02', '1 3 0 2' - ALL should be read as EXACTLY '1302' or '1,302'.",
-    "11. OCR may MISREAD digits: '1,302' might be incorrectly read as '442' (1→4, 3→4, 0→2, 2 missing) - VERIFY each digit carefully!",
-    "12. Read each digit ONE BY ONE: If text shows '₹1,302', count: first digit is '1', second is '3', third is '0', fourth is '2' = exactly '₹1,302'.",
-    "13. Extract that value exactly as shown, including the currency symbol (e.g., '₹1,302').",
-    "14. If multiple crossed-out prices exist, choose the one appearing NEAREST to the current price or discount percentage.",
-    "15. Do not extract any price that is not crossed-out.",
-    "16. DO NOT extract numbers from these sections: ratings, reviews, offers (unless it's clearly a price), delivery charges.",
-    "17. Preserve commas and currency symbols as displayed.",
-    "18. VERIFICATION: Before returning, verify: (a) digits match what you see - '₹1,302' = digits 1-3-0-2, (b) it's NOT from ratings/reviews section, (c) it appears near the current price."
-  ],
-  "type": "string",
-  "example": "₹1,302"
-},
+        "description": "Extract the current (non-crossed-out) selling price of the product.",
+        "rules": [
+            "1. Look for currency values with symbols like ₹, Rs, Rs., $, etc.",
+            "2. If a price is struck-through (crossed out), IGNORE it — it is MRP or old price.",
+            "3. The non-crossed-out price shown near 'Special price', 'Offer price', or discount text is the CURRENT price.",
+            "4. CRITICAL OCR FIX: The Rupee symbol '₹' is often misread as the digit '2'.",
+            "   - Example: '₹1,299' is often read as '21,299'.",
+            "   - If you see a leading '2' that makes the price unusually large (e.g., '21,299' instead of '1,299'), it is the Rupee symbol.",
+            "   - Action: Drop the leading '2' if it appears to be a misread symbol. Extract '1,299'.",
+            "5. CRITICAL: Read digits EXACTLY as shown - if you see '₹592', extract EXACTLY '592', NOT '202' or '2592'.",
+            "6. OCR may split numbers: '592' might appear as '5 92', '59 2', or '5 9 2' - ALL should be read as EXACTLY '592'.",
+            "7. OCR may MISREAD digits: '592' might be incorrectly read as '202' (5→2, 9→0) or '442' (5→4, 9→4) - VERIFY each digit carefully!",
+            "8. Read each digit ONE BY ONE: If text shows '₹592', count: first digit is '5', second is '9', third is '2' = exactly '₹592'.",
+            "9. Extract the value exactly as displayed, including the currency symbol (e.g., '₹592' or '2,599' if '2' is likely '₹').",
+            "10. If multiple prices exist, pick the one that is highlighted, largest, or next to 'Special price'.",
+            "11. Do not change digits or symbols — keep commas.",
+            "12. VERIFICATION: Before returning, verify digits match what you see - '₹592' = digits 5-9-2, NOT 2-0-2 or 4-4-2.",
+            "13. Return only one value — the current price."
+        ],
+        "type": "string",
+        "example": "₹592"
+    },
+    "mrp": {
+        "description": "Extract the MRP or original price that is crossed out (struck-through).",
+        "rules": [
+            "1. CRITICAL: MRP is the STRUCK-THROUGH (crossed-out) price that appears NEAR the current price.",
+            "2. CRITICAL OCR FIX: The Rupee symbol '₹' is often misread as the digit '2'.",
+            "   - Example: '2,599' might be read as '22,599'. Action: Treat leading '2' as symbol, extract '2,599'.",
+            "3. CRITICAL: DO NOT extract numbers from 'ratings' or 'reviews' text - those are NOT MRP.",
+            "4. MRP appears in the PRICING SECTION, usually right above or next to the current price.",
+            "5. Look for prices with currency symbols like ₹, Rs, Rs., $, etc.",
+            "6. Identify the price that is struck-through (crossed out) - this is the MRP.",
+            "7. CRITICAL: Read digits EXACTLY as shown.",
+            "8. CRITICAL: If you see '2,82,519' or '2,825' near 'ratings' or 'reviews' text, that is NOT MRP - ignore it completely!",
+            "9. Extract that value exactly as shown, including the currency symbol (e.g., '₹1,302').",
+            "10. If multiple crossed-out prices exist, choose the one appearing NEAREST to the current price.",
+            "11. Do not extract any price that is not crossed-out.",
+            "12. Preserve commas.",
+            "13. VERIFICATION: Before returning, verify: (a) digits match what you see, (b) it's NOT from ratings/reviews section, (c) it appears near the current price."
+        ],
+        "type": "string",
+        "example": "₹1,302"
+    },
 
     "product_name": {
         "description": "Product name or title",
@@ -529,44 +528,26 @@ def run(url, fields=None, use_dom_first=True, use_ocr_fallback=True):
                         return error_result
             
             if img_path:
-                # Try both OCR methods and combine for maximum text extraction
+                # Try EasyOCR first (better for web pages/Rupee symbol)
                 print("Extracting text with EasyOCR...")
-                easyocr_text = ocr_easyocr(img_path, lang_list=['en'])
+                easyocr_text = ocr_easyocr(img_path, lang_list=['en', 'hi'])
                 print(f"EasyOCR extracted {len(easyocr_text)} characters")
                 
-                print("Extracting text with pytesseract...")
-                tesseract_text = ocr_pytesseract(img_path)
-                print(f"pytesseract extracted {len(tesseract_text)} characters")
-                
-                # Combine both results to get ALL text
-                # Use the longer one as base, and add unique content from the other
-                if len(easyocr_text) > len(tesseract_text):
+                # Check if EasyOCR result is sufficient
+                if len(easyocr_text.strip()) > 50:
                     extracted_text = easyocr_text
-                    # Add any unique lines from tesseract
-                    easyocr_lines = set(easyocr_text.split('\n'))
-                    tesseract_lines = tesseract_text.split('\n')
-                    for line in tesseract_lines:
-                        if line.strip() and line.strip() not in easyocr_lines:
-                            extracted_text += "\n" + line
+                    print("EasyOCR result sufficient, skipping Tesseract.")
                 else:
-                    extracted_text = tesseract_text
-                    # Add any unique lines from easyocr
-                    tesseract_lines = set(tesseract_text.split('\n'))
-                    easyocr_lines = easyocr_text.split('\n')
-                    for line in easyocr_lines:
-                        if line.strip() and line.strip() not in tesseract_lines:
-                            extracted_text += "\n" + line
+                    print("EasyOCR text too short or empty, trying pytesseract fallback...")
+                    tesseract_text = ocr_pytesseract(img_path)
+                    print(f"pytesseract extracted {len(tesseract_text)} characters")
+                    
+                    if len(tesseract_text) > len(easyocr_text):
+                        extracted_text = tesseract_text
+                    else:
+                        extracted_text = easyocr_text
                 
                 source = "ocr"
-                print(f"Combined OCR extracted {len(extracted_text)} characters total")
-                
-                # Fallback if combined text is still too short
-                if len(extracted_text.strip()) < 50:
-                    print("Warning: Combined OCR text is too short, using longer one individually...")
-                    if len(easyocr_text.strip()) > len(tesseract_text.strip()):
-                        extracted_text = easyocr_text
-                    else:
-                        extracted_text = tesseract_text
         except Exception as e:
             print(f"OCR extraction failed: {e}")
             if len(extracted_text.strip()) < 50:
@@ -905,27 +886,26 @@ def run_on_image(image_path, fields=None):
         source = "ocr"
         print(f"Extracting text from image: {image_path}")
         try:
-            easyocr_text = ocr_easyocr(image_path, lang_list=['en'])
+            # Try EasyOCR first (includes Hindi for Rupee symbol)
+            easyocr_text = ocr_easyocr(image_path, lang_list=['en', 'hi'])
         except Exception as e:
             print(f"EasyOCR failed: {e}"); easyocr_text = ""
             
-        try:
-            tesseract_text = ocr_pytesseract(image_path)
-        except Exception as e:
-            print(f"pytesseract failed: {e}"); tesseract_text = ""
-        
-        if len(easyocr_text) > len(tesseract_text):
+        # Check if EasyOCR result is sufficient
+        if len(easyocr_text.strip()) > 50:
             extracted_text = easyocr_text
-            easyocr_lines = set(easyocr_text.split('\n'))
-            for line in tesseract_text.split('\n'):
-                if line.strip() and line.strip() not in easyocr_lines:
-                    extracted_text += "\n" + line
+            print(f"EasyOCR result sufficient ({len(extracted_text)} chars), skipping Tesseract.")
         else:
-            extracted_text = tesseract_text
-            tesseract_lines = set(tesseract_text.split('\n'))
-            for line in easyocr_text.split('\n'):
-                if line.strip() and line.strip() not in tesseract_lines:
-                    extracted_text += "\n" + line
+            print("EasyOCR text too short, trying pytesseract fallback...")
+            try:
+                tesseract_text = ocr_pytesseract(image_path)
+            except Exception as e:
+                print(f"pytesseract failed: {e}"); tesseract_text = ""
+            
+            if len(tesseract_text) > len(easyocr_text):
+                extracted_text = tesseract_text
+            else:
+                extracted_text = easyocr_text
                     
         if len(extracted_text.strip()) < 10:
             return {f: None for f in fields} | {"source": "ocr", "error": "Insufficient text"}
